@@ -643,3 +643,42 @@ const std::string Position::fen() const {
     
     return ss.str();
 }
+
+bool Position::arbiter_draw() const {
+    const PositionState& ps = states.back();
+
+    if (ps.halfmove_clock >= 50)
+        return true;
+    
+    for (std::vector<PositionState>::const_reverse_iterator it = states.rbegin();
+         it + 1 != states.rend() && it + 2 != states.rend();
+         it += 2)
+    {
+        if ((it + 2)->zkey == ps.zkey)
+            return true;
+    }
+
+    return false;
+}
+
+// For speculative prefetch
+Key Position::key_after(Move m) const
+{
+    Square from = from_sq(m);
+    Square to = to_sq(m);
+    Piece pc = piece_on(from);
+    Piece captured = piece_on(to);
+    Key k = key() ^ Zobrist::side[0] ^ Zobrist::side[1];
+
+    if (captured)
+        k ^= Zobrist::psqs[to][captured];
+
+    return k ^= Zobrist::psqs[from][pc] ^ Zobrist::psqs[to][pc];
+}
+
+// bool Position::insufficient_material() const {
+//     if (pos.pieces(QUEEN) || pos.pieces(ROOK) || pos.pieces(PAWN))
+//         return false;
+
+//     if (!pos.pieces(KNIGHT, WHITE) && !pos.pieces())
+// }

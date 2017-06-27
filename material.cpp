@@ -18,7 +18,7 @@ Value material_bootstrap(const int counts[PIECE_NB]) {
     int phase = game_phase(counts);
     if (phase > MAX_PHASE)
         phase = MAX_PHASE;
-
+    
     int ret = 0;
     ret = counts[W_PAWN] * scale_phase(PawnValueMg, PawnValueEg, phase);
     ret += counts[W_KNIGHT] * scale_phase(KnightValueMg, KnightValueEg, phase);

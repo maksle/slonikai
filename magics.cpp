@@ -12,8 +12,6 @@ Bitboard edge_mask(Square sq) {
     Bitboard edges = 0;
     int rk = static_cast<int>(sq) >> 3;
     int fl = 7 - (static_cast<int>(sq) & 7);
-    if (sq == H8) 
-        std::cout << "rk " << rk << " fl " << fl << std::endl;
     if (rk != 0) edges |= RankBB[0];
     if (rk != 7) edges |= RankBB[7];
     if (fl != 0) edges |= FileBB[0];

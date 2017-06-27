@@ -9,6 +9,7 @@
 typedef uint64_t ULL;
 typedef uint64_t Key;
 typedef uint64_t Bitboard;
+typedef uint64_t Score;
 
 enum Square {
   H1, G1, F1, E1, D1, C1, B1, A1,
@@ -62,6 +63,8 @@ enum PieceType {
   PIECETYPE_NB = 8
 };
 
+const PieceType PieceTypes[] = { PAWN, KNIGHT, BISHOP, ROOK, QUEEN, KING };
+
 const Piece Pieces[] = { W_PAWN, W_KNIGHT, W_BISHOP, W_ROOK, W_QUEEN, W_KING,
                          B_PAWN, B_KNIGHT, B_BISHOP, B_ROOK, B_QUEEN, B_KING };
 
@@ -107,6 +110,7 @@ const int MAX_MOVES = 128;
 
 // Values From stockfish
 enum Value {
+  VALUE_NONE = 0,
   VALUE_ZERO = 0,
   VALUE_DRAW = 0,
   

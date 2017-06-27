@@ -9,43 +9,52 @@
 #include "tt.h"
 #include "position.h"
 #include "search.h"
+#include "uci.h"
+#include "features.h"
+#include "template.cpp"
+#include "package/mxnet-cpp/MxNetCpp.h"
+#include "nn.h"
 
-typedef uint64_t ULL;
+#include "sts.cpp"
 
-int main() {
+int main(int argc, char* argv[])
+{
     Bitboards::init();
     Magics::init();
     Zobrist::init();
+    TT.resize(256);
     
-    // const int CacheLineSize = 64;
-    // TTEntry me[1] {};
-    // me[0] = TTEntry();
+    // UCI::loop(argc, argv);
     
-    Position pos = Position();
-    // pos.make_move(make_move(F1, F2), pos.gives_check(make_move(F1, F2)));
-    // pos.make_move(make_move<PROMOTION>(B2, A1, QUEEN), pos.gives_check(make_move<PROMOTION>(B2, A1, QUEEN)));
+    // std::cout << "char: " << sizeof(char) << std::endl;
+    // std::cout << "int: " << sizeof(int) << std::endl;
+    // std::cout << "short int: " << sizeof(short int) << std::endl;
+    // std::cout << "TTEntry: " << sizeof(TTEntry) << std::endl;
     
-    // std::cout << pos << std::endl;
-    // std::cout << pos.fen() << std::endl;
-    // std::cout << pos.en_pessant_sq() << std::endl;
-    // std::cout << "checkers: " << popcount(pos.checkers()) << std::endl;
+    // Position pos = Position();
+    // std::chrono::time_point<std::chrono::steady_clock> start = std::chrono::steady_clock::now();
+    // int nodes = Search::perft<true>(pos, 5);
+    // std::chrono::time_point<std::chrono::steady_clock> end = std::chrono::steady_clock::now();
+    // std::chrono::duration<double> diff = end - start;
+    // std::cout << "Nodes searched: " << nodes << std::endl;
+
+    // Position pos = Position();
+    // // nntest(pos);
+    // auto net = SlonikNet();
+    // // pos.set("r3r1k1/1b1q1pp1/npp2b1p/p2p4/Q2P4/2NBPN2/PP3PPP/2R2RK1 w - - 0 16");
+    // std::cout << pos;
+    // std::cout << "Value: " << net.evaluate(pos) << std::endl;
     
-    std::chrono::time_point<std::chrono::steady_clock> start = std::chrono::steady_clock::now();
-
-    int nodes = Search::perft<true>(pos, 5);
-
-    std::chrono::time_point<std::chrono::steady_clock> end = std::chrono::steady_clock::now();
-
-    // std::chrono::milliseconds diff = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
-    std::chrono::duration<double> diff = end - start;
-
-    std::cout << "Nodes searched: " << nodes << std::endl;
-    std::cout << "Total ms: " << diff.count() << std::endl;
-    std::cout << "Total ms: " << diff.count() << std::endl;
-    std::cout << "Nodes / second: " << nodes / diff.count() << std::endl;
+    std::string epd = "1b1qrr2/1p4pk/1np4p/p3Np1B/Pn1P4/R1N3B1/1Pb2PPP/2Q1R1K1 b - - bm Bxe5; id \"STS(v10.0) Simplification.001\"; c0 \"Bxe5=10, f4=3, Nc4=2\"; c8 \"10 3 2\"; c9 \"b8e5 f5f4 b6c4\";";
+    
+    parse_epd(epd);
+        
+    // std::cout << "Total ms: " << diff.count() << std::endl;
+    // std::cout << "Total ms: " << diff.count() << std::endl;
+    // std::cout << "Nodes / second: " << nodes / diff.count() << std::endl;
     
     // std::cout << Bitboards::print_bb(pos.discoverers(BLACK)) << std::endl;
-    
+
     // std::vector<Move> moves;
     // generate<ALL_PSEUDO>(pos, moves);
     // // generate<ALL_LEGAL>(pos, moves);
@@ -59,6 +68,7 @@ int main() {
     //               << " legal: " << pos.is_legal(move)
     //               << std::endl;
     // }
-    
+
+    MXNotifyShutdown();
     return 0;
 }

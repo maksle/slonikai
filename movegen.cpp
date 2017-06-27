@@ -77,10 +77,13 @@ Bitboard piece_attack(Piece pt, Square sq, Bitboard occupied) {
 //     }
 // }
 
-template<PieceType PT>
+template<PieceType PT, bool Checks>
 std::vector<Move>&
 generate_attacks(const Position& pos, Bitboard valid, std::vector<Move>& moves)
 {
+    if (Checks)
+        valid |= pos.check_squares(QUEEN);
+    
     Side stm = pos.side_to_move();
     Bitboard pcs = pos.pieces(stm, PT);
     while (pcs) {
@@ -96,8 +99,8 @@ generate_attacks(const Position& pos, Bitboard valid, std::vector<Move>& moves)
     return moves;
 }
 
-template<CastlingRight CR>
-std::vector<Move>& generate_castling(const Position& pos, std::vector<Move>& moves, bool if_checks)
+template<CastlingRight CR, bool Checks>
+std::vector<Move>& generate_castling(const Position& pos, std::vector<Move>& moves)
 {
     if (pos.checkers())
         return moves;
@@ -124,7 +127,7 @@ std::vector<Move>& generate_castling(const Position& pos, std::vector<Move>& mov
             return moves;
     
     Move move = make_move<CASTLING>(from, to);
-    if (!if_checks || pos.gives_check(move))
+    if (!Checks || pos.gives_check(move))
         moves.push_back(move);
     
     return moves;
@@ -201,41 +204,26 @@ generate(const Position& pos, std::vector<Move>& moves)
     Side us = pos.side_to_move();
     Side them = ~us;
     
-    Bitboard valid;
-    bool checks;
+    const bool Checks = GT == ALL_PSEUDO ? false : GT == QUIESCENCE_TIER1;
+
+    Bitboard valid = GT == ALL_PSEUDO ? ~pos.pieces(us) : pos.pieces(them);
     
-    if (GT == ALL_PSEUDO) {
-        valid = ~pos.pieces(us);
-        checks = false;
-    } else {
-        valid = pos.pieces(them);
-        checks = GT == QUIESCENCE_TIER1;
-    }
-    
-    Bitboard b = checks ? valid | pos.check_squares(PAWN) : valid;
+    Bitboard b = Checks ? valid | pos.check_squares(PAWN) : valid;
     std::vector<PieceType> promo_types { QUEEN, KNIGHT, ROOK, BISHOP };
     generate_pawn_moves(pos, b, moves, promo_types);
-
-    b = checks ? valid | pos.check_squares(KNIGHT) : valid;
-    generate_attacks<KNIGHT>(pos, b, moves);
-
-    b = checks ? valid | pos.check_squares(BISHOP) : valid;
-    generate_attacks<BISHOP>(pos, b, moves);
-
-    b = checks ? valid | pos.check_squares(ROOK) : valid;
-    generate_attacks<ROOK>(pos, b, moves);
-
-    b = checks ? valid | pos.check_squares(QUEEN) : valid;
-    generate_attacks<QUEEN>(pos, b, moves);
-
-    generate_attacks<KING>(pos, valid, moves);
+    
+    generate_attacks<KNIGHT, Checks>(pos, valid, moves);
+    generate_attacks<BISHOP, Checks>(pos, valid, moves);
+    generate_attacks<ROOK, Checks>(pos, valid, moves);
+    generate_attacks<QUEEN, Checks>(pos, valid, moves);
+    generate_attacks<KING, false>(pos, valid, moves);
     
     if (us == WHITE) {
-        generate_castling<WHITE_00_RIGHT>(pos, moves, checks);
-        generate_castling<WHITE_000_RIGHT>(pos, moves, checks);
+        generate_castling<WHITE_00_RIGHT, Checks>(pos, moves);
+        generate_castling<WHITE_000_RIGHT, Checks>(pos, moves);
     } else {
-        generate_castling<BLACK_00_RIGHT>(pos, moves, checks);
-        generate_castling<BLACK_000_RIGHT>(pos, moves, checks);
+        generate_castling<BLACK_00_RIGHT, Checks>(pos, moves);
+        generate_castling<BLACK_000_RIGHT, Checks>(pos, moves);
     }
     return moves;
 }
@@ -254,7 +242,7 @@ generate<EVASIONS>(const Position& pos, std::vector<Move>& moves)
     Side us = pos.side_to_move();
     Side them = ~us;
     
-    generate_attacks<KING>(pos, ~pos.pieces(us), moves);
+    generate_attacks<KING, false>(pos, ~pos.pieces(us), moves);
 
     Square ksq = lsb(pos.pieces(us, KING));
     
@@ -270,10 +258,10 @@ generate<EVASIONS>(const Position& pos, std::vector<Move>& moves)
         
         std::vector<PieceType> promo_types { QUEEN, KNIGHT, ROOK, BISHOP };
         generate_pawn_moves(pos, valid, moves, promo_types);
-        generate_attacks<KNIGHT>(pos, valid, moves);
-        generate_attacks<BISHOP>(pos, valid, moves);
-        generate_attacks<ROOK>(pos, valid, moves);
-        generate_attacks<QUEEN>(pos, valid, moves);
+        generate_attacks<KNIGHT, false>(pos, valid, moves);
+        generate_attacks<BISHOP, false>(pos, valid, moves);
+        generate_attacks<ROOK, false>(pos, valid, moves);
+        generate_attacks<QUEEN, false>(pos, valid, moves);
     }
 
     return moves;
@@ -289,4 +277,21 @@ generate<ALL_LEGAL>(const Position& pos, std::vector<Move>& moves)
                 moves.end());
 
     return moves;
+}
+
+std::vector<ProbMove> evaluate_moves(const Position& pos, const std::vector<Move>& moves)
+{
+    std::vector<ProbMove> pmoves;
+    for (const auto& m : moves) {
+        if (pos.gives_check(m))
+            pmoves.emplace_back(m, .3);
+        else if (pos.piece_on(to_sq(m)))
+            pmoves.emplace_back(m, .25);
+        else if (type_of(m) == PROMOTION && promo_piece(m) == QUEEN)
+            pmoves.emplace_back(m, .25);
+        else
+            pmoves.emplace_back(m, .1);
+    }
+    std::sort(pmoves.rbegin(), pmoves.rend());
+    return pmoves;
 }

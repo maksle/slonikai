@@ -1,3 +1,6 @@
+#ifndef POSITION_GUARD_H
+#define POSITION_GUARD_H
+
 #include <vector>
 
 struct PositionState {
@@ -50,11 +53,13 @@ public:
 
     Side side_to_move() const;
     Key key() const;
+    Key key_after(Move m) const;
     Square en_pessant_sq() const;
     Piece piece_on(Square sq) const;
     Bitboard pieces() const;
     Bitboard pieces(Side side) const;
     Bitboard pieces(Side side, PieceType bt) const;
+    Bitboard pieces(PieceType bt) const;
     Bitboard pieces(Piece pt) const;
     Bitboard pieces(Piece pt, Piece pt2) const;
     Bitboard pieces(Side side, PieceType bt, PieceType bt2) const;
@@ -63,11 +68,14 @@ public:
     Bitboard attackers(Square sq) const;
     Bitboard checkers() const;
     Bitboard check_squares(PieceType pt) const;
+    Piece captured() const;
 
     bool gives_check(Move m) const;
     Bitboard discoverers(Side s) const;
     Bitboard pinned(Side s) const;
     bool is_legal(Move move) const;
+    bool arbiter_draw() const;
+    bool insuficient_material() const;
 
     friend std::ostream& operator<<(std::ostream& os, const Position& pos);
 };
@@ -86,6 +94,10 @@ inline Bitboard Position::pieces(Side side) const {
 
 inline Bitboard Position::pieces(Side side, PieceType bt) const {
     return pieceBB[make_piece(bt, side)];
+}
+
+inline Bitboard Position::pieces(PieceType bt) const {
+  return pieceBB[make_piece(bt, WHITE)] | pieceBB[make_piece(bt, BLACK)];
 }
 
 inline Bitboard Position::pieces(Piece pt) const {
@@ -108,8 +120,12 @@ inline Bitboard Position::check_squares(PieceType pt) const {
   return checkSquaresBB[pt];
 }
 
+inline Piece Position::captured() const {
+  return states.back().captured_pt;
+}
+
 inline Key Position::key() const {
-    return states.back().zkey;
+  return states.back().zkey;
 }
 
 inline Square Position::en_pessant_sq() const {
@@ -123,3 +139,5 @@ inline Bitboard Position::discoverers(Side s) const {
 inline Bitboard Position::pinned(Side s) const {
   return pinnedBB[s];
 }
+
+#endif
