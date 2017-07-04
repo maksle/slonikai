@@ -19,6 +19,12 @@ namespace {
     int statically_evaluate(const Position& pos);
     void print_uci_moves(const std::vector<Move>&);
     std::vector<Move> tt_find_pv(Position& pos);
+
+    template<bool PVNode>
+    int search(Context& context, Position& pos, SearchInfo* si, Score alpha, Score beta, double allowance);
+
+    template<bool PVNode>
+    int qsearch(Context& context, Position& pos, SearchInfo* si, Score alpha, Score beta);
 }
 
 template<bool Root>
@@ -55,8 +61,119 @@ int Search::perft(Position& pos, int depth) {
     return nodes;
 }
 
+SearchOutput Search::iterative_deepening(Context& context)
+{
+    int depth = 1;
+    double allowance = std::pow(4, depth);
+
+    Score value = ::statically_evaluate(context.root_position);
+    
+    Search::SearchInfo si[256];
+    
+    Signals signals = context.signals;
+
+    std::vector<Move> pv;
+    
+    while (!signals.stop && depth < context.limits.max_depth)
+    {
+        depth += 1;
+        allowance = std::pow(4, depth);
+        bool finished = false;
+        int fail_factor = 18;
+
+        Score alpha = std::max(NEGATIVE_INF, int(value - fail_factor));
+        Score beta = std::min(POSITIVE_INF, int(value + fail_factor));
+        std::string bound = "";
+        
+        while (!finished)
+        {
+            if (signals.stop) break;
+            si->pv.clear();
+            value = search<true>(context, context.root_position, si, alpha, beta, allowance);
+            if (signals.stop) break;
+
+            if (value <= alpha) {
+                bound = " upperbound";
+                alpha = std::max(NEGATIVE_INF, int(value - fail_factor));
+                fail_factor *= 3;
+            } else if (value >= beta) {
+                bound = " lowerbound";
+                beta = std::min(POSITIVE_INF, int(value + fail_factor));
+                pv = si->pv;
+            } else {
+                bound = "";
+                pv = si->pv;
+                finished = true;
+            }
+
+            if (bound == "") {
+                std::cout << "info depth" << depth << "\n"
+                          << "score cp" << value << bound << "\n"
+                          << "pv ";
+                print_uci_moves(pv);
+                std::cout << std::endl;
+            }
+        }
+    }
+
+    if (pv.size() == 0)
+        pv = tt_find_pv(context.root_position);
+
+    if (pv.size() > 1)
+        std::cout << "bestmove " << pv[0] << " ponder" << pv[1] << std::endl;
+    else if (pv.size() > 0)
+        std::cout << "bestmove " << pv[0] << std::endl;
+
+    SearchOutput output = SearchOutput();
+    output.pv = pv;
+    output.value = value;
+    return output;
+}
+
+template int Search::perft<true>(Position& pos, int depth);
+// template int Search::search<true>(Position& pos, SearchInfo* si, int alpha, int beta, double allowance);
+// template int Search::search<false>(Position& pos, SearchInfo* si, int alpha, int beta, double allowance);
+
+namespace {
+
+int statically_evaluate(const Position& pos) {
+    return 0;
+}
+
+void print_uci_moves(const std::vector<Move>& moves) {
+    for (const auto& m : moves)
+        std::cout << m << std::endl;
+}
+
+std::vector<Move> tt_find_pv(Position& pos) {
+    std::vector<Move> result;
+
+    auto find_next_move = [&pos]() {
+        TTEntry* tte = TT.probe(pos.key());
+        if (tte && (tte->bound() == LOW_BOUND || tte->bound() == EXACT_BOUND)) 
+            return tte->best_move();
+        return MOVE_NONE;
+    };
+
+    int moves_made = 0;
+
+    Move m = find_next_move();
+
+    while (m != MOVE_NONE) {
+        result.push_back(m);
+        pos.make_move(m, pos.gives_check(m));
+        m = find_next_move();
+        moves_made++;
+    }
+
+    while (moves_made--)
+        pos.unmake_move();
+
+    return result;
+}
+
 template<bool PVNode>
-int Search::search(Position& pos, SearchInfo* si, int alpha, int beta, double allowance)
+int search(Context& context, Position& pos, SearchInfo* si, Score alpha, Score beta, double allowance)
 {
     assert(PVNode || (alpha == beta - 1));
 
@@ -77,7 +194,7 @@ int Search::search(Position& pos, SearchInfo* si, int alpha, int beta, double al
         return DRAW_VALUE;
     
     if (allowance < 1)
-        return qsearch<PVNode>(pos, si, alpha, beta);
+        return qsearch<PVNode>(context, pos, si, alpha, beta);
     
     TTEntry* tte = TT.probe(pos.key());
     if (tte && tte->allowance >= allowance)
@@ -127,12 +244,12 @@ int Search::search(Position& pos, SearchInfo* si, int alpha, int beta, double al
         double child_allowance = allowance * prob;
         if (PVNode && (move_count > 1) && (allowance > MIN_PVS_ALLOWANCE))
         {
-            val = -search<false>(pos, si+1, -(alpha+1), -alpha, child_allowance);
+            val = -search<false>(context, pos, si+1, -(alpha+1), -alpha, child_allowance);
             if (alpha < val && val < beta)
-                val = -search<true>(pos, si+1, -beta, -alpha, child_allowance);
+                val = -search<true>(context, pos, si+1, -beta, -alpha, child_allowance);
         }
         else
-            val = -search<PVNode>(pos, si+1, -beta, -alpha, child_allowance);
+            val = -search<PVNode>(context, pos, si+1, -beta, -alpha, child_allowance);
 
         pos.unmake_move();
         
@@ -175,7 +292,7 @@ int Search::search(Position& pos, SearchInfo* si, int alpha, int beta, double al
 }
 
 template<bool PVNode>
-int Search::qsearch(Position& pos, SearchInfo* si, int alpha, int beta)
+int qsearch(Context& context, Position& pos, SearchInfo* si, Score alpha, Score beta)
 {
     si->pv.clear();
     (si+1)->pv.clear();
@@ -231,7 +348,7 @@ int Search::qsearch(Position& pos, SearchInfo* si, int alpha, int beta)
 
         ++move_count;
         pos.make_move(m, pos.gives_check(m));
-        val = -qsearch<PVNode>(pos, si+1, -beta, -alpha);
+        val = -qsearch<PVNode>(context, pos, si+1, -beta, -alpha);
         pos.unmake_move();
         
         if (val > alpha)
@@ -261,113 +378,6 @@ int Search::qsearch(Position& pos, SearchInfo* si, int alpha, int beta)
     return alpha;
 }
 
-void Search::iterative_deepening(Context& context)
-{
-    int depth = 1;
-    double allowance = std::pow(4, depth);
-
-    int value = ::statically_evaluate(context.root_position);
-    
-    Search::SearchInfo si[256];
-    
-    Signals signals = context.signals;
-
-    std::vector<Move> pv;
-    
-    while (!signals.stop && depth < context.limits.max_depth)
-    {
-        depth += 1;
-        allowance = std::pow(4, depth);
-        bool finished = false;
-        int fail_factor = 18;
-
-        int alpha = std::max(NEGATIVE_INF, value - fail_factor);
-        int beta = std::min(POSITIVE_INF, value + fail_factor);
-        std::string bound = "";
-        
-        while (!finished)
-        {
-            if (signals.stop) break;
-            si->pv.clear();
-            value = Search::search<true>(context.root_position, si, alpha, beta, allowance);
-            if (signals.stop) break;
-
-            if (value <= alpha) {
-                bound = " upperbound";
-                alpha = std::max(NEGATIVE_INF, value - fail_factor);
-                fail_factor *= 3;
-            } else if (value >= beta) {
-                bound = " lowerbound";
-                beta = std::min(POSITIVE_INF, value + fail_factor);
-                pv = si->pv;
-            } else {
-                bound = "";
-                pv = si->pv;
-                finished = true;
-            }
-
-            if (bound == "") {
-                std::cout << "info depth" << depth << "\n"
-                          << "score cp" << value << bound << "\n"
-                          << "pv ";
-                print_uci_moves(pv);
-                std::cout << std::endl;
-            }
-        }
-    }
-
-    if (pv.size() == 0)
-        pv = tt_find_pv(context.root_position);
-
-    if (pv.size() > 1)
-        std::cout << "bestmove " << pv[0] << " ponder" << pv[1] << std::endl;
-    else if (pv.size() > 0)
-        std::cout << "bestmove " << pv[0] << std::endl;
-
-}
-
-namespace {
-
-int statically_evaluate(const Position& pos) {
-    return 0;
-}
-
-void print_uci_moves(const std::vector<Move>& moves) {
-    for (const auto& m : moves)
-        std::cout << m << std::endl;
-}
-
-std::vector<Move> tt_find_pv(Position& pos) {
-    std::vector<Move> result;
-
-    auto find_next_move = [&pos]() {
-        TTEntry* tte = TT.probe(pos.key());
-        if (tte && (tte->bound() == LOW_BOUND || tte->bound() == EXACT_BOUND)) 
-            return tte->best_move();
-        return MOVE_NONE;
-    };
-
-    int moves_made = 0;
-
-    Move m = find_next_move();
-
-    while (m != MOVE_NONE) {
-        result.push_back(m);
-        pos.make_move(m, pos.gives_check(m));
-        m = find_next_move();
-        moves_made++;
-    }
-
-    while (moves_made--)
-        pos.unmake_move();
-
-    return result;
-}
-
 } // namespace
-
-template int Search::perft<true>(Position& pos, int depth);
-template int Search::search<true>(Position& pos, SearchInfo* si, int alpha, int beta, double allowance);
-template int Search::search<false>(Position& pos, SearchInfo* si, int alpha, int beta, double allowance);
 
 // #endif

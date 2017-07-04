@@ -66,9 +66,8 @@ SlonikNet::SlonikNet() {
     load_args_map(train_maps.args_map);
 }
 
-void SlonikNet::make_args_map(int batch_size,
-                              Slonik::NNMapsContainer& maps) {
-    
+void SlonikNet::make_args_map(int batch_size, Slonik::NNMapsContainer& maps)
+{
     maps.args_map["global_data"] = NDArray(Shape(batch_size, input_global_size), Context::cpu());
     maps.args_map["pawn_data"] = NDArray(Shape(batch_size, input_pawn_size), Context::cpu());
     maps.args_map["piece_data"] = NDArray(Shape(batch_size, input_piece_size), Context::cpu());
@@ -135,16 +134,39 @@ void SlonikNet::load_inputs_from_position(const Position& pos, vector<float> tar
     NDArray::WaitAll();
 }
 
+void SlonikNet::train(vector<vector<float>> features, vector<float> targets) {
+    vector<float> global;
+    vector<float> pawn;
+    vector<float> piece;
+    vector<float> square;
+
+    move(features[0].begin(), features[0].end(), back_inserter(global));
+    move(features[1].begin(), features[1].end(), back_inserter(pawn));
+    move(features[2].begin(), features[2].end(), back_inserter(piece));
+    move(features[3].begin(), features[3].end(), back_inserter(square));
+    
+    make_args_map(targets.size(), other_maps);
+    load_args_map(other_maps.args_map);
+
+    other_maps.args_map["global_data"].SyncCopyFromCPU(global.data(), global.size());
+    other_maps.args_map["pawn_data"].SyncCopyFromCPU(pawn.data(), pawn.size());
+    other_maps.args_map["piece_data"].SyncCopyFromCPU(piece.data(), piece.size());
+    other_maps.args_map["square_data"].SyncCopyFromCPU(square.data(), square.size());
+    other_maps.args_map["label"].SyncCopyFromCPU(targets.data(), targets.size());
+    NDArray::WaitAll();
+
+    fit(other_maps);
+}
+
 float SlonikNet::evaluate(const Position& pos) {
     load_inputs_from_position(pos);
     return forward_only();
 }
 
-void SlonikNet::train() {
-    train(train_maps);
-}
+void SlonikNet::fit() { fit(train_maps); }
 
-void SlonikNet::train(Slonik::NNMapsContainer& maps) {
+void SlonikNet::fit(Slonik::NNMapsContainer& maps)
+{
     Optimizer* opt = OptimizerRegistry::Find("adam");
     unique_ptr<Executor> exec { loss.SimpleBind(Context::cpu(), maps.args_map, maps.arg_grad_store, maps.grad_req_type, maps.aux_map) };
 

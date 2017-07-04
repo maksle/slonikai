@@ -33,3 +33,14 @@ void UCI::loop(int argc, char* argv[]) {
     //     std::cout << "\n";
     // }
 }
+
+std::string UCI::str(Move m)
+{
+    std::stringstream ss;
+    Square from = from_sq(m);
+    Square to = to_sq(m);
+    ss << std::string { char(file_of(from) + 'a'), char(rank_of(from) + '1') };
+    ss << std::string { char(file_of(to) + 'a'), char(rank_of(to) + '1') };
+    if (type_of(m) == PROMOTION)
+        ss << PieceToChar[promo_piece(m)];
+}

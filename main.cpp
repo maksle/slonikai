@@ -15,7 +15,7 @@
 #include "package/mxnet-cpp/MxNetCpp.h"
 #include "nn.h"
 
-#include "sts.cpp"
+// #include "sts.cpp"
 
 int main(int argc, char* argv[])
 {
@@ -45,10 +45,6 @@ int main(int argc, char* argv[])
     // std::cout << pos;
     // std::cout << "Value: " << net.evaluate(pos) << std::endl;
     
-    std::string epd = "1b1qrr2/1p4pk/1np4p/p3Np1B/Pn1P4/R1N3B1/1Pb2PPP/2Q1R1K1 b - - bm Bxe5; id \"STS(v10.0) Simplification.001\"; c0 \"Bxe5=10, f4=3, Nc4=2\"; c8 \"10 3 2\"; c9 \"b8e5 f5f4 b6c4\";";
-    
-    parse_epd(epd);
-        
     // std::cout << "Total ms: " << diff.count() << std::endl;
     // std::cout << "Total ms: " << diff.count() << std::endl;
     // std::cout << "Nodes / second: " << nodes / diff.count() << std::endl;
@@ -69,6 +65,6 @@ int main(int argc, char* argv[])
     //               << std::endl;
     // }
 
-    MXNotifyShutdown();
+    // MXNotifyShutdown();
     return 0;
 }

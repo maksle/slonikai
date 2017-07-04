@@ -19,6 +19,10 @@ struct Limits {
     int max_depth;
 };
 
+struct MiscFlags {
+    bool training;
+};
+
 namespace Search { 
 
   struct Context
@@ -27,6 +31,7 @@ namespace Search {
     std::vector<RootMove> root_moves;
     Signals signals;
     Limits limits;
+    MiscFlags flags;
   };
   
   struct SearchInfo
@@ -38,17 +43,23 @@ namespace Search {
     double total_allowance;
   };
 
+  struct SearchOutput
+  {
+    Score value;
+    std::vector<Move> pv;
+  };
+  
   const double MIN_PVS_ALLOWANCE = 16;
 
   template<bool Root = true> int perft(Position& pos, int depth);
 
-  template<bool PVNode>
-    int search(Position& pos, SearchInfo* si, int alpha, int beta, double allowance);
+  /* template<bool PVNode> */
+  /*   int search(Position& pos, SearchInfo* si, int alpha, int beta, double allowance); */
 
-  template<bool PVNode>
-    int qsearch(Position& pos, SearchInfo* si, int alpha, int beta);
+  /* template<bool PVNode> */
+  /*   int qsearch(Position& pos, SearchInfo* si, int alpha, int beta); */
   
-  void iterative_deepening(Context& context);
+  SearchOutput iterative_deepening(Context& context);
   
 }
 

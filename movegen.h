@@ -1,5 +1,8 @@
-#ifndef MOVEGEN_GAURD
-#define MOVEGEN_GAURD
+#ifndef MOVEGEN_GAURD_H
+#define MOVEGEN_GAURD_H
+
+#include "types.h"
+#include <vector>
 
 class Position;
 
@@ -12,11 +15,11 @@ enum GenType {
 };
 
 struct ProbMove {
-ProbMove(Move m, double p) : move(m), probability(p) {};
-  
   Move move;
   double probability;
 
+  ProbMove(Move m, double p) : move(m), probability(p) {};
+  
   void operator=(Move m) { move = m; };
   operator Move() const { return move; };
 
@@ -40,5 +43,17 @@ template<CastlingRight cr>
 std::vector<Move>& generate_castling(const Position&, std::vector<Move>&);
 
 std::vector<ProbMove> evaluate_moves(const Position&, const std::vector<Move>&);
+
+template<GenType GT>
+struct MoveGen {
+  std::vector<Move> moves;
+  const Position* position = nullptr;
+  
+  MoveGen(const Position& pos) {
+    position = &pos;
+    generate<GT>(pos, moves);
+  }
+  std::vector<ProbMove> evaluate() { return evaluate_moves(*position, moves); }
+};
 
 #endif

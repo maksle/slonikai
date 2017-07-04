@@ -13,6 +13,10 @@ Position::Position() {
     set("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1");
 }
 
+Position::Position(std::string fen) {
+    set(fen);
+}
+
 bool Position::castling_rights(CastlingRight cr) const {
     return states.back().castling & cr;
 }
@@ -96,6 +100,10 @@ void Position::discoverers_and_pinned(Bitboard sliders, Square sq, Bitboard& dis
             }
         }
     }
+}
+
+void Position::make_move(Move m) {
+    make_move(m, gives_check(m));
 }
 
 void Position::make_move(Move m, bool givesCheck) {

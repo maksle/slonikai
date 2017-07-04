@@ -2,6 +2,7 @@
 #define POSITION_GUARD_H
 
 #include <vector>
+#include "types.h"
 
 struct PositionState {
     Side stm;
@@ -38,10 +39,12 @@ public:
     std::vector<Move> moves;
 
     Position();
+    Position(std::string fen);
 
     bool castling_rights(CastlingRight c) const;
     bool castling_rights(CastlingRight cr, PositionState& ps) const;
     
+    void make_move(Move m);
     void make_move(Move m, bool givesCheck);
     void unmake_move();
 

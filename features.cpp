@@ -26,7 +26,7 @@ namespace {
             return push_coords(SQUARE_NONE, side, f);
         return push_coords(pop_lsb(b), side, f);
     }
-}
+} // namespace
 
 void FeatureExtractor::set_position(const Position& position) {
     pos = &position;
