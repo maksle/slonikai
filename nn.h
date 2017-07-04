@@ -52,7 +52,8 @@ class SlonikNet {
 
   void fit();
   void fit(Slonik::NNMapsContainer& maps);
-  void train(std::vector<std::vector<float>> features, std::vector<float> targets);
+  /* void train(std::vector<std::vector<float>> features, std::vector<float> targets); */
+  void train(std::vector< std::vector<std::vector<float>> > features, std::vector<float> targets);
   float forward_only();
   float evaluate(const Position& pos);
 };

@@ -134,16 +134,19 @@ void SlonikNet::load_inputs_from_position(const Position& pos, vector<float> tar
     NDArray::WaitAll();
 }
 
-void SlonikNet::train(vector<vector<float>> features, vector<float> targets) {
+void SlonikNet::train(vector< vector<vector<float>> > features, vector<float> targets) {
     vector<float> global;
     vector<float> pawn;
     vector<float> piece;
     vector<float> square;
 
-    move(features[0].begin(), features[0].end(), back_inserter(global));
-    move(features[1].begin(), features[1].end(), back_inserter(pawn));
-    move(features[2].begin(), features[2].end(), back_inserter(piece));
-    move(features[3].begin(), features[3].end(), back_inserter(square));
+    for (auto& pos_features : features)
+    {
+        move(pos_features[0].begin(), pos_features[0].end(), back_inserter(global));
+        move(pos_features[1].begin(), pos_features[1].end(), back_inserter(pawn));
+        move(pos_features[2].begin(), pos_features[2].end(), back_inserter(piece));
+        move(pos_features[3].begin(), pos_features[3].end(), back_inserter(square));
+    }
     
     make_args_map(targets.size(), other_maps);
     load_args_map(other_maps.args_map);

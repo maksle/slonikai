@@ -3,24 +3,33 @@
 
 #include <vector>
 #include "types.h"
+#include "tt.h"
 
 class Position;
 
 struct RootMove {
-    Move move;
-    Score value;
+  Move move;
+  Score value;
 };
 
 struct Signals {
-    bool stop;
+  bool stop;
 };
 
 struct Limits {
-    int max_depth;
+  int max_depth;
 };
 
-struct MiscFlags {
-    bool training;
+struct TrainUpdateNode {
+  std::string fen;
+  Score leaf_eval;
+  TTBound bound;
+  Score static_eval;
+};
+
+struct TrainMeta {
+  bool training;
+  std::vector<TrainUpdateNode> search_states;
 };
 
 namespace Search { 
@@ -31,7 +40,7 @@ namespace Search {
     std::vector<RootMove> root_moves;
     Signals signals;
     Limits limits;
-    MiscFlags flags;
+    TrainMeta train;
   };
   
   struct SearchInfo

@@ -71,7 +71,7 @@ void play() {
             Search::Context context;
             context.root_position = pos;
             context.limits.max_depth = 4;
-            context.flags.training = true;
+            context.train.training = true;
             
             while (!game_over(pos)) {
                 // clear search_states for treesnap if not using transposition table
@@ -94,30 +94,30 @@ void play() {
                     std::cout << "]";
                 }
                 
-                std::vector<std::vector<float>> features;
+                std::vector< std::vector<std::vector<float>> > features;
                 std::vector<float> targets;
                 
-                // for (auto s : search_states)
-                // {
-                //     Position position = Position(s.fen);
+                for (auto s : context.train.search_states)
+                {
+                    Position position = Position(s.fen);
                     
-                //     Score value = s.value / 1000;
-                //     Score static_eval = s.static_eval / 1000;
-
-                //     if ((so.bound == LOW_BOUND && value > static_eval)
-                //         || (bound == HIGH_BOUND && value < static_eval)
-                //         || (bound == EXACT_BOUND))
-                //     {
-                //         if (position.side_to_move() == BLACK) {
-                //             value = -value;
-                //             static_eval = -static_eval;
-                //         }
-                //         extractor.set_position(position);
-                //         std::vector<std::vector<float>> pos_features = extractor.extract();
-                //         features.push_back(pos_features);
-                //         targets.push_back(value);
-                //     }
-                // }
+                    Score value = s.leaf_eval / 1000;
+                    Score static_eval = s.static_eval / 1000;
+                    
+                    if ((s.bound == LOW_BOUND && value > static_eval)
+                        || (s.bound == HIGH_BOUND && value < static_eval)
+                        || (s.bound == EXACT_BOUND))
+                    {
+                        if (position.side_to_move() == BLACK) {
+                            value = -value;
+                            static_eval = -static_eval;
+                        }
+                        extractor.set_position(position);
+                        std::vector<std::vector<float>> pos_features = extractor.extract();
+                        features.push_back(pos_features);
+                        targets.push_back(value);
+                    }
+                }
 
                 // bool is_fixed = eval_is_fixed(leaf, leaf_val)
 
