@@ -231,6 +231,8 @@ generate(const Position& pos, std::vector<Move>& moves)
 // explict instantiations
 template std::vector<Move>&
 generate<ALL_PSEUDO>(const Position&, std::vector<Move>&);
+template std::vector<Move>&
+generate<QUIESCENCE_TIER2>(const Position&, std::vector<Move>&);
 
 
 template<>

@@ -5,7 +5,6 @@
 #include "types.h"
 #include "position.h"
 #include "search.h"
-#include "constants.h"
 
 namespace {
     std::string start_fen = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
@@ -43,4 +42,5 @@ std::string UCI::str(Move m)
     ss << std::string { char(file_of(to) + 'a'), char(rank_of(to) + '1') };
     if (type_of(m) == PROMOTION)
         ss << PieceToChar[promo_piece(m)];
+    return ss.str();
 }

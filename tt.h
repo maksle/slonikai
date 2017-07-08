@@ -22,8 +22,8 @@ class TTEntry {
   
   uint64_t allowance;
   uint64_t key;
+  Score value;
   uint16_t move;
-  uint16_t value;
   uint16_t gen_bound;
 };
 

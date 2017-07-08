@@ -15,6 +15,8 @@
 #include "package/mxnet-cpp/MxNetCpp.h"
 #include "nn.h"
 
+#include "sts.h"
+
 // #include "sts.cpp"
 
 int main(int argc, char* argv[])
@@ -23,6 +25,8 @@ int main(int argc, char* argv[])
     Magics::init();
     Zobrist::init();
     TT.resize(256);
+
+    STS::run_sts_test();
     
     // UCI::loop(argc, argv);
     

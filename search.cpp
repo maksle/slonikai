@@ -5,12 +5,12 @@
 #include <iostream>
 #include <string>
 #include <cmath>
+#include <limits>
 #include "types.h"
 #include "bb.h"
 #include "movegen.h"
 #include "position.h"
 #include "search.h"
-#include "constants.h"
 #include "tt.h"
 
 using namespace Search;
@@ -21,7 +21,7 @@ namespace {
     std::vector<Move> tt_find_pv(Position& pos);
 
     template<bool PVNode>
-    int search(Context& context, Position& pos, SearchInfo* si, Score alpha, Score beta, double allowance);
+    int search(Context& context, Position& pos, SearchInfo* si, Score alpha, Score beta, uint64_t allowance);
 
     template<bool PVNode>
     int qsearch(Context& context, Position& pos, SearchInfo* si, Score alpha, Score beta);
@@ -64,7 +64,7 @@ int Search::perft(Position& pos, int depth) {
 SearchOutput Search::iterative_deepening(Context& context)
 {
     int depth = 1;
-    double allowance = std::pow(4, depth);
+    uint64_t allowance = std::pow(4, depth);
 
     Score value = ::statically_evaluate(context.root_position);
     
@@ -79,10 +79,16 @@ SearchOutput Search::iterative_deepening(Context& context)
         depth += 1;
         allowance = std::pow(4, depth);
         bool finished = false;
-        int fail_factor = 18;
+        Score fail_factor = 18;
 
-        Score alpha = std::max(NEGATIVE_INF, int(value - fail_factor));
-        Score beta = std::min(POSITIVE_INF, int(value + fail_factor));
+        Score alpha = value - fail_factor;
+        Score beta = value + fail_factor;
+
+        if (alpha >= beta) {
+            alpha = NEGATIVE_INF;
+            beta = POSITIVE_INF;
+        }
+            
         std::string bound = "";
         
         while (!finished)
@@ -92,13 +98,13 @@ SearchOutput Search::iterative_deepening(Context& context)
             value = search<true>(context, context.root_position, si, alpha, beta, allowance);
             if (signals.stop) break;
 
-            if (value <= alpha) {
+            if (value <= alpha && value - fail_factor < value) {
                 bound = " upperbound";
-                alpha = std::max(NEGATIVE_INF, int(value - fail_factor));
+                alpha = std::max(NEGATIVE_INF, static_cast<Score>(value - fail_factor));
                 fail_factor *= 3;
-            } else if (value >= beta) {
+            } else if (value >= beta && value + fail_factor > value) {
                 bound = " lowerbound";
-                beta = std::min(POSITIVE_INF, int(value + fail_factor));
+                beta = std::min(POSITIVE_INF, static_cast<Score>(value + fail_factor));
                 pv = si->pv;
             } else {
                 bound = "";
@@ -107,9 +113,9 @@ SearchOutput Search::iterative_deepening(Context& context)
             }
 
             if (bound == "") {
-                std::cout << "info depth" << depth << "\n"
-                          << "score cp" << value << bound << "\n"
-                          << "pv ";
+                std::cout << "info depth " << depth
+                          << " score cp " << value << " " << bound
+                          << " pv ";
                 print_uci_moves(pv);
                 std::cout << std::endl;
             }
@@ -120,7 +126,7 @@ SearchOutput Search::iterative_deepening(Context& context)
         pv = tt_find_pv(context.root_position);
 
     if (pv.size() > 1)
-        std::cout << "bestmove " << pv[0] << " ponder" << pv[1] << std::endl;
+        std::cout << "bestmove " << pv[0] << " ponder " << pv[1] << std::endl;
     else if (pv.size() > 0)
         std::cout << "bestmove " << pv[0] << std::endl;
 
@@ -142,7 +148,7 @@ int statically_evaluate(const Position& pos) {
 
 void print_uci_moves(const std::vector<Move>& moves) {
     for (const auto& m : moves)
-        std::cout << m << std::endl;
+        std::cout << m << " ";
 }
 
 std::vector<Move> tt_find_pv(Position& pos) {
@@ -173,7 +179,7 @@ std::vector<Move> tt_find_pv(Position& pos) {
 }
 
 template<bool PVNode>
-int search(Context& context, Position& pos, SearchInfo* si, Score alpha, Score beta, double allowance)
+int search(Context& context, Position& pos, SearchInfo* si, Score alpha, Score beta, uint64_t allowance)
 {
     assert(PVNode || (alpha == beta - 1));
 
@@ -209,6 +215,8 @@ int search(Context& context, Position& pos, SearchInfo* si, Score alpha, Score b
         }
     }
 
+    allowance *= .9999;
+    
     // Move tt_move = tte ? tte->best_move() : MOVE_NONE;
     
     // int static_eval;
@@ -218,7 +226,7 @@ int search(Context& context, Position& pos, SearchInfo* si, Score alpha, Score b
     //     || (si->ply.static_eval >= (si-2)->ply.static_eval);
     
     Move best_move = MOVE_NONE;
-    int best_val = NEGATIVE_INF;
+    Score best_val = NEGATIVE_INF;
     int move_count = 0;
 
     std::vector<Move> moves;
@@ -230,7 +238,7 @@ int search(Context& context, Position& pos, SearchInfo* si, Score alpha, Score b
         Move m = pm.move;
         double prob = pm.probability;
 
-        int val = 0;
+        Score val = 0;
 
         TT.prefetch(pos.key_after(m));
         
@@ -241,7 +249,7 @@ int search(Context& context, Position& pos, SearchInfo* si, Score alpha, Score b
         pos.make_move(m, gives_check);
         ++move_count;
         
-        double child_allowance = allowance * prob;
+        uint64_t child_allowance = allowance * prob;
         if (PVNode && (move_count > 1) && (allowance > MIN_PVS_ALLOWANCE))
         {
             val = -search<false>(context, pos, si+1, -(alpha+1), -alpha, child_allowance);
@@ -320,7 +328,7 @@ int qsearch(Context& context, Position& pos, SearchInfo* si, Score alpha, Score 
         // We can't stand pat if in check, because standing pat assumes that
         // there is at least some quiet move at least as good as alpha. The
         // assumption isn't safe when in check.
-        int static_eval = ::statically_evaluate(pos);
+        Score static_eval = ::statically_evaluate(pos);
 
         if (static_eval >= beta)
             return static_eval;
@@ -333,13 +341,13 @@ int qsearch(Context& context, Position& pos, SearchInfo* si, Score alpha, Score 
     int move_count = 0;
 
     std::vector<Move> moves;
-    generate<ALL_PSEUDO>(pos, moves);
+    generate<QUIESCENCE_TIER2>(pos, moves);
     std::vector<ProbMove> pmoves = evaluate_moves(pos, moves);
 
     for (const auto& pm : pmoves)
     {
         Move m = pm.move;
-        int val = 0;
+        Score val = 0;
 
         TT.prefetch(pos.key_after(m));
         

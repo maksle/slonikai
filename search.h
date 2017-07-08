@@ -2,22 +2,33 @@
 #define SEARCH_GAURD_H
 
 #include <vector>
+#include <limits>
 #include "types.h"
 #include "tt.h"
+
+const int MAX_PLY = 64;
+
+const Score DRAW_VALUE = 0;
+
+const Score NEGATIVE_INF = std::numeric_limits<Score>::lowest();
+const Score POSITIVE_INF = std::numeric_limits<Score>::max();
+
+const Score MATE_LOSE = NEGATIVE_INF + 1000;
+const Score MATE_WIN = POSITIVE_INF - 1000;
 
 class Position;
 
 struct RootMove {
-  Move move;
-  Score value;
+  Move move = MOVE_NONE;
+  Score value = NEGATIVE_INF;
 };
 
 struct Signals {
-  bool stop;
+  bool stop = false;
 };
 
 struct Limits {
-  int max_depth;
+  int max_depth = 64;
 };
 
 struct TrainUpdateNode {
@@ -28,7 +39,7 @@ struct TrainUpdateNode {
 };
 
 struct TrainMeta {
-  bool training;
+  bool training = false;
   std::vector<TrainUpdateNode> search_states;
 };
 
@@ -49,7 +60,7 @@ namespace Search {
     std::vector<Move> pv;
     int static_eval;
     bool is_QS;
-    double total_allowance;
+    uint64_t total_allowance;
   };
 
   struct SearchOutput
@@ -58,12 +69,12 @@ namespace Search {
     std::vector<Move> pv;
   };
   
-  const double MIN_PVS_ALLOWANCE = 16;
+  const uint64_t MIN_PVS_ALLOWANCE = 16;
 
   template<bool Root = true> int perft(Position& pos, int depth);
 
   /* template<bool PVNode> */
-  /*   int search(Position& pos, SearchInfo* si, int alpha, int beta, double allowance); */
+  /*   int search(Position& pos, SearchInfo* si, int alpha, int beta, uint64_t allowance); */
 
   /* template<bool PVNode> */
   /*   int qsearch(Position& pos, SearchInfo* si, int alpha, int beta); */

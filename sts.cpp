@@ -52,9 +52,9 @@ namespace {
         for (auto it = ops.begin() + 1; it < ops.end(); ++it)
         {
             std::string op = trim(*it);
-            if (op.find("c8") != std::string::npos)
+            if (op.find("c8") == 0)
                 scores_str = op;
-            else if (op.find("c9") != std::string::npos)
+            else if (op.find("c9") == 0)
                 moves_str = op;
         }
 
@@ -105,24 +105,31 @@ int run_sts_test()
 
         Position pos(fen);
         std::cout << pos << std::endl;
+        std::cout << pos.fen() << std::endl;
 
-        Search::Context context;
+        Search::Context context {};
         context.root_position = pos;
-        context.limits.max_depth = 2;
+        context.limits.max_depth = 4;
         Search::SearchOutput so = Search::iterative_deepening(context);
 
         if (so.pv.size() == 0)
             std::cerr << "No result from search" << std::endl;
 
+        std::cout << "{";
+        for (auto s : move_scores)
+            std::cout << s.first << ": " << s.second << ", ";
+        std::cout << "}\n";
+        
         std::cout << "Chosen move: " << UCI::str(so.pv[0]) << std::endl;
         auto it = move_scores.find(UCI::str(so.pv[0]));
         if (it != move_scores.end()) {
             score += it->second;
             std::cout << it->second << std::endl;
         }
+        std::cout << std::endl;
     }
 
-    std::cout << "Final score: " << score;
+    std::cout << "Final score: " << score << "\n";
     return score;
 }
     

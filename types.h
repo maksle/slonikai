@@ -9,7 +9,8 @@
 typedef uint64_t ULL;
 typedef uint64_t Key;
 typedef uint64_t Bitboard;
-typedef uint64_t Score;
+
+typedef int16_t Score;
 
 enum Square {
   H1, G1, F1, E1, D1, C1, B1, A1,
