@@ -3,8 +3,10 @@
 
 #include <vector>
 #include <limits>
+#include <functional>
 #include "types.h"
 #include "tt.h"
+#include "eval.h"
 
 const int MAX_PLY = 64;
 
@@ -43,12 +45,15 @@ struct TrainMeta {
   std::vector<TrainUpdateNode> search_states;
 };
 
-namespace Search { 
+typedef std::function<Score(const Position&)> Evaluator;
 
+namespace Search {
+  
   struct Context
   {
     Position root_position;
     std::vector<RootMove> root_moves;
+    Evaluator evaluator;
     Signals signals;
     Limits limits;
     TrainMeta train;
@@ -56,10 +61,10 @@ namespace Search {
   
   struct SearchInfo
   {
-    int ply;
+    int ply = 0;
     std::vector<Move> pv;
-    int static_eval;
-    bool is_QS;
+    Score static_eval = NEGATIVE_INF;
+    bool is_QS = false;
     uint64_t total_allowance;
   };
 

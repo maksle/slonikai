@@ -50,7 +50,8 @@ Symbol SlonikNet::build_net() {
     return V_prelim;
 }
 
-SlonikNet::SlonikNet() {
+SlonikNet::SlonikNet()
+{
     v = build_net();
     target = Symbol::Variable("label");
 
@@ -81,7 +82,11 @@ void SlonikNet::make_args_map(int batch_size, Slonik::NNMapsContainer& maps)
             maps.grad_req_type[name] = OpReqType::kWriteTo;
     } 
     
-    v.InferArgsMap(Context::cpu(), &(maps.args_map), maps.args_map);
+    // v.InferArgsMap(Context::cpu(), &(maps.args_map), maps.args_map);
+    
+    v.InferExecutorArrays(Context::cpu(),
+                          &maps.arg_arrays, &maps.grad_arrays, &maps.grad_reqs, &maps.aux_arrays,
+                          maps.args_map, maps.arg_grad_store, maps.grad_req_type, maps.aux_map);
 }
 
 void SlonikNet::load_args_map(std::map<std::string, NDArray>& args_map) {
@@ -112,16 +117,16 @@ void SlonikNet::load_inputs_from_position(const Position& pos, vector<float> tar
     std::vector<float> pieces = features[2];
     std::vector<float> squares = features[3];
 
-    cout << "[";
-    for (auto& f : pieces) {
-        cout << f << ", ";
-    }
-    cout << "]\n";
+    // cout << "[";
+    // for (auto& f : pieces) {
+    //     cout << f << ", ";
+    // }
+    // cout << "]\n";
 
-    LG << "global size " << global.size();
-    LG << "pawns size " << pawns.size();
-    LG << "pieces size " << pieces.size();
-    LG << "squares size " << squares.size();
+    // LG << "global size " << global.size();
+    // LG << "pawns size " << pawns.size();
+    // LG << "pieces size " << pieces.size();
+    // LG << "squares size " << squares.size();
     
     predict_maps.args_map["global_data"].SyncCopyFromCPU(global.data(), global.size());
     predict_maps.args_map["pawn_data"].SyncCopyFromCPU(pawns.data(), pawns.size());
@@ -134,7 +139,7 @@ void SlonikNet::load_inputs_from_position(const Position& pos, vector<float> tar
     NDArray::WaitAll();
 }
 
-void SlonikNet::train(vector< vector<vector<float>> > features, vector<float> targets) {
+void SlonikNet::train(vector<Features> features, vector<float> targets) {
     vector<float> global;
     vector<float> pawn;
     vector<float> piece;
@@ -171,6 +176,7 @@ void SlonikNet::fit() { fit(train_maps); }
 void SlonikNet::fit(Slonik::NNMapsContainer& maps)
 {
     Optimizer* opt = OptimizerRegistry::Find("adam");
+    
     unique_ptr<Executor> exec { loss.SimpleBind(Context::cpu(), maps.args_map, maps.arg_grad_store, maps.grad_req_type, maps.aux_map) };
 
     float learning_rate = 3e-5;
@@ -184,9 +190,8 @@ void SlonikNet::fit(Slonik::NNMapsContainer& maps)
 
 float SlonikNet::forward_only() {
     Optimizer* opt = OptimizerRegistry::Find("adam");
-    unique_ptr<Executor> exec { v.SimpleBind(Context::cpu(),
-                                             predict_maps.args_map, predict_maps.arg_grad_store,
-                                             predict_maps.grad_req_type, predict_maps.aux_map) };
+    unique_ptr<Executor> exec { v.Bind(Context::cpu(),
+                                       predict_maps.arg_arrays, predict_maps.grad_arrays, predict_maps.grad_reqs, predict_maps.aux_arrays) };
     float res[1];
     
     // LG << args_map["global_data"];

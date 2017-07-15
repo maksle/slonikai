@@ -1,6 +1,7 @@
 #include <string>
 #include <vector>
 #include <cassert>
+// #include <random>
 #include <iostream>
 #include <sstream>
 #include <fstream>
@@ -11,6 +12,7 @@
 #include "types.h"
 #include "search.h"
 #include "uci.h"
+#include "nn.h"
 
 namespace {
     std::vector<std::string> split_str(std::string src, std::string delim)
@@ -93,7 +95,15 @@ int run_sts_test()
         std::cerr << "Failed to open " << filename << " for reading" << std::endl;
         assert(false);
     }
-
+    
+    SlonikNet net;
+    Evaluator evaluator = [&net](const Position& pos) {
+        float score = net.evaluate(pos);
+        // float score = .5;
+        score *= 10000;
+        return Score(score * (pos.side_to_move() == WHITE ? 1 : -1));
+    };
+    
     n = 0;
     std::string line;
     while (std::getline(sts_file, line))
@@ -109,7 +119,8 @@ int run_sts_test()
 
         Search::Context context {};
         context.root_position = pos;
-        context.limits.max_depth = 4;
+        context.limits.max_depth = 1;
+        context.evaluator = evaluator;
         Search::SearchOutput so = Search::iterative_deepening(context);
 
         if (so.pv.size() == 0)
@@ -127,6 +138,8 @@ int run_sts_test()
             std::cout << it->second << std::endl;
         }
         std::cout << std::endl;
+
+        break;
     }
 
     std::cout << "Final score: " << score << "\n";

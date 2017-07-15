@@ -3,9 +3,12 @@
 
 #include <string>
 #include <map>
+/* #include "eval.h" */
 #include "package/mxnet-cpp/MxNetCpp.h"
 
 class Position;
+
+typedef std::vector<std::vector<float>> Features;
 
 namespace Slonik {
   struct NNMapsContainer {
@@ -13,6 +16,12 @@ namespace Slonik {
     std::map<std::string, mxnet::cpp::NDArray> arg_grad_store;
     std::map<std::string, mxnet::cpp::OpReqType> grad_req_type;
     std::map<std::string, mxnet::cpp::NDArray> aux_map;
+
+    /* For executor */
+    std::vector<mxnet::cpp::NDArray> arg_arrays;
+    std::vector<mxnet::cpp::NDArray> grad_arrays;
+    std::vector<mxnet::cpp::OpReqType> grad_reqs;
+    std::vector<mxnet::cpp::NDArray> aux_arrays;
   };
 }
 

@@ -210,9 +210,10 @@ void FeatureExtractor::counts_and_values(std::vector<float>& f) {
 
 template<Side S>
 void FeatureExtractor::queens(std::vector<float>& f) {
-    Square q = lsb(pos->pieces(S, QUEEN));
+    Bitboard qs = pos->pieces(S, QUEEN);
+    Square q = qs > 0 ? lsb(qs) : SQUARE_NONE;
     push_coords(q, S, f);
-    f.push_back(popcount(q));
+    f.push_back(popcount(qs));
 }
 
 template<Side S>

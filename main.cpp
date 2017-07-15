@@ -26,7 +26,12 @@ int main(int argc, char* argv[])
     Zobrist::init();
     TT.resize(256);
 
-    STS::run_sts_test();
+    // std::chrono::time_point<std::chrono::steady_clock> start = std::chrono::steady_clock::now();
+    // STS::run_sts_test();
+    // std::chrono::time_point<std::chrono::steady_clock> end = std::chrono::steady_clock::now();
+    
+    // std::chrono::duration<double> diff = end - start;
+    // std::cout << "secs: " << diff.count() << std::endl;
     
     // UCI::loop(argc, argv);
     
@@ -35,12 +40,17 @@ int main(int argc, char* argv[])
     // std::cout << "short int: " << sizeof(short int) << std::endl;
     // std::cout << "TTEntry: " << sizeof(TTEntry) << std::endl;
     
-    // Position pos = Position();
-    // std::chrono::time_point<std::chrono::steady_clock> start = std::chrono::steady_clock::now();
-    // int nodes = Search::perft<true>(pos, 5);
-    // std::chrono::time_point<std::chrono::steady_clock> end = std::chrono::steady_clock::now();
-    // std::chrono::duration<double> diff = end - start;
-    // std::cout << "Nodes searched: " << nodes << std::endl;
+    int depth = 5;
+    // Position pos = Position("r4rk1/1pp1qppp/p1np1n2/2b1p1B1/2B1P1b1/P1NP1N2/1PP1QPPP/R4RK1 w - - 0 10");
+    // Position pos = Position("8/2p5/3p4/KP5r/1R3p1k/8/4P1P1/8 w - - 0 0");
+    Position pos;
+    std::chrono::time_point<std::chrono::steady_clock> start = std::chrono::steady_clock::now();
+    int nodes = Search::perft<true>(pos, depth);
+    std::chrono::time_point<std::chrono::steady_clock> end = std::chrono::steady_clock::now();
+    std::chrono::duration<double> diff = end - start;
+    std::cout << "Depth: " << depth << std::endl;
+    std::cout << "Seconds: " << diff.count() << std::endl;
+    std::cout << "Nodes searched: " << nodes << std::endl;
 
     // Position pos = Position();
     // // nntest(pos);
@@ -51,7 +61,7 @@ int main(int argc, char* argv[])
     
     // std::cout << "Total ms: " << diff.count() << std::endl;
     // std::cout << "Total ms: " << diff.count() << std::endl;
-    // std::cout << "Nodes / second: " << nodes / diff.count() << std::endl;
+    std::cout << "Nodes / second: " << nodes / diff.count() << std::endl;
     
     // std::cout << Bitboards::print_bb(pos.discoverers(BLACK)) << std::endl;
 

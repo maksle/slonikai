@@ -16,7 +16,11 @@
 using namespace Search;
 
 namespace {
-    int statically_evaluate(const Position& pos);
+
+    int nodecnt = 0;
+    int tthitcnt = 0;
+    
+    // int statically_evaluate(const Position& pos);
     void print_uci_moves(const std::vector<Move>&);
     std::vector<Move> tt_find_pv(Position& pos);
 
@@ -63,56 +67,76 @@ int Search::perft(Position& pos, int depth) {
 
 SearchOutput Search::iterative_deepening(Context& context)
 {
-    int depth = 1;
+    int depth = 0;
     uint64_t allowance = std::pow(4, depth);
-
-    Score value = ::statically_evaluate(context.root_position);
     
-    Search::SearchInfo si[256];
+    Search::SearchInfo si[256] {};
+    auto root_si = si + 1;
     
     Signals signals = context.signals;
 
     std::vector<Move> pv;
-    
+
+    Score value = context.evaluator(context.root_position);
     while (!signals.stop && depth < context.limits.max_depth)
     {
         depth += 1;
         allowance = std::pow(4, depth);
         bool finished = false;
-        Score fail_factor = 18;
+        Score fail_factor = 400;
 
         Score alpha = value - fail_factor;
         Score beta = value + fail_factor;
 
-        if (alpha >= beta) {
+        if (alpha >= beta)
+        {
             alpha = NEGATIVE_INF;
             beta = POSITIVE_INF;
         }
             
         std::string bound = "";
         
+        std::cout << "depth " << depth << " allowance " << allowance << std::endl;
+        
         while (!finished)
         {
             if (signals.stop) break;
-            si->pv.clear();
-            value = search<true>(context, context.root_position, si, alpha, beta, allowance);
+            root_si->pv.clear();
+            value = search<true>(context, context.root_position, root_si, alpha, beta, allowance);
             if (signals.stop) break;
 
-            if (value <= alpha && value - fail_factor < value) {
+            std::cout << "val: " << value
+                      << " alpha: " << alpha
+                      << " beta: " << beta
+                      << (value <= alpha ? " faillow " : value >= beta ? " failhigh " : " exact ")
+                      << " ;; nodecnt: " << nodecnt
+                      << " tthitcnt: " << tthitcnt << std::endl;
+            
+            if (value <= alpha) {
                 bound = " upperbound";
-                alpha = std::max(NEGATIVE_INF, static_cast<Score>(value - fail_factor));
-                fail_factor *= 3;
-            } else if (value >= beta && value + fail_factor > value) {
+                beta = (alpha + beta) / 2;
+                if (value - fail_factor < value)
+                    alpha = static_cast<Score>(value - fail_factor);
+                else
+                    alpha = NEGATIVE_INF;
+            } else if (value >= beta ) {
                 bound = " lowerbound";
-                beta = std::min(POSITIVE_INF, static_cast<Score>(value + fail_factor));
-                pv = si->pv;
+                alpha = (alpha + beta) / 2;
+                if (value + fail_factor > value)
+                    beta = static_cast<Score>(value + fail_factor);
+                else
+                    beta = POSITIVE_INF;
+                pv = root_si->pv;
             } else {
                 bound = "";
-                pv = si->pv;
+                pv = root_si->pv;
                 finished = true;
             }
 
-            if (bound == "") {
+            fail_factor *= 8;
+
+            if (bound == "")
+            {
                 std::cout << "info depth " << depth
                           << " score cp " << value << " " << bound
                           << " pv ";
@@ -141,10 +165,6 @@ template int Search::perft<true>(Position& pos, int depth);
 // template int Search::search<false>(Position& pos, SearchInfo* si, int alpha, int beta, double allowance);
 
 namespace {
-
-int statically_evaluate(const Position& pos) {
-    return 0;
-}
 
 void print_uci_moves(const std::vector<Move>& moves) {
     for (const auto& m : moves)
@@ -183,6 +203,9 @@ int search(Context& context, Position& pos, SearchInfo* si, Score alpha, Score b
 {
     assert(PVNode || (alpha == beta - 1));
 
+    nodecnt += 1;
+    tthitcnt += 1;
+    
     bool is_root = PVNode && si->ply == 0;
     
     si->ply = (si-1)->ply + 1;
@@ -211,6 +234,7 @@ int search(Context& context, Position& pos, SearchInfo* si, Score alpha, Score b
                 ? tte->bound() == LOW_BOUND
                 : tte->bound() == HIGH_BOUND))
         {
+            tthitcnt += 1;
             return tte->value;
         }
     }
@@ -294,7 +318,7 @@ int search(Context& context, Position& pos, SearchInfo* si, Score alpha, Score b
     TTBound&& bound = (best_val >= beta ? LOW_BOUND
                        : best_val <= alpha ? HIGH_BOUND
                        : EXACT_BOUND);
-    TT.save(pos, best_move, bound, best_val, allowance);
+    // TT.save(pos, best_move, bound, best_val, allowance);
     
     return best_val;
 }
@@ -302,6 +326,9 @@ int search(Context& context, Position& pos, SearchInfo* si, Score alpha, Score b
 template<bool PVNode>
 int qsearch(Context& context, Position& pos, SearchInfo* si, Score alpha, Score beta)
 {
+
+    nodecnt += 1;
+    
     si->pv.clear();
     (si+1)->pv.clear();
     si->ply = (si-1)->ply + 1;
@@ -317,10 +344,13 @@ int qsearch(Context& context, Position& pos, SearchInfo* si, Score alpha, Score 
         && !PVNode
         && (tte->value >= beta
             ? tte->bound() == LOW_BOUND
-            : tte->bound() == HIGH_BOUND))
+            : tte->bound() == HIGH_BOUND)) {
+        tthitcnt += 1;
         return tte->value;
-
-    int alpha_orig = alpha;
+    }
+        
+    Score alpha_orig = alpha;
+    Score best_value = NEGATIVE_INF;
     
     bool in_check = pos.checkers();
     if (!in_check)
@@ -328,7 +358,8 @@ int qsearch(Context& context, Position& pos, SearchInfo* si, Score alpha, Score 
         // We can't stand pat if in check, because standing pat assumes that
         // there is at least some quiet move at least as good as alpha. The
         // assumption isn't safe when in check.
-        Score static_eval = ::statically_evaluate(pos);
+        Score static_eval = context.evaluator(pos);
+        best_value = static_eval;
 
         if (static_eval >= beta)
             return static_eval;
@@ -359,31 +390,37 @@ int qsearch(Context& context, Position& pos, SearchInfo* si, Score alpha, Score 
         val = -qsearch<PVNode>(context, pos, si+1, -beta, -alpha);
         pos.unmake_move();
         
-        if (val > alpha)
+        if (val > best_value)
         {
-            alpha = val;
+            best_value = val;
             best_move = m;
 
-            if (PVNode) {
-                si->pv.clear();
-                si->pv.push_back(m);
-                si->pv.insert(si->pv.end(), (si+1)->pv.begin(), (si+1)->pv.end());
-            }
+            if (val > alpha)
+            {
+                alpha = val;
+                
+                if (PVNode)
+                {
+                    si->pv.clear();
+                    si->pv.push_back(m);
+                    si->pv.insert(si->pv.end(), (si+1)->pv.begin(), (si+1)->pv.end());
+                }
 
-            if (val >= beta)
-                break;
+                if (val >= beta)
+                    break;
+            }
         }
     }
 
     if (in_check && move_count == 0)
         return MATE_LOSE + si->ply;
 
-    TTBound&& bound = (alpha >= beta ? LOW_BOUND
-                       : alpha <= alpha_orig ? HIGH_BOUND
+    TTBound&& bound = (best_value >= beta ? LOW_BOUND
+                       : best_value <= alpha_orig ? HIGH_BOUND
                        : EXACT_BOUND);
-    TT.save(pos, best_move, bound, alpha, 0);
+    // TT.save(pos, best_move, bound, best_value, 0);
         
-    return alpha;
+    return best_value;
 }
 
 } // namespace

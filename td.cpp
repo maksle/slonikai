@@ -7,6 +7,7 @@
 #include <fstream>
 #include <iostream>
 #include <string>
+#include <cmath> // tanh
 
 namespace {
 bool has_moves(const Position& pos) {
@@ -132,6 +133,48 @@ void play() {
             } // game 
         } // positions iteration
     } // iterations iteration
+}
+
+void initialize() {
+    std::string filename = "../stockfish_init_scores.txt";
+    std::ifstream initf(filename);
+        
+    if (!initf) {
+        std::cerr << "Failed to open " << filename << " for initialization" << std::endl;
+        assert(false);
+    }
+    
+    std::vector<Features> train_features;
+    std::vector<float> train_scores;
+
+    std::vector<Features> valid_features;
+    std::vector<float> valid_scores;
+
+    auto fe = FeatureExtractor();
+    
+    std::string line;
+    while (true)
+    {
+        int n = 0;
+
+        std::string fen;
+        std::string score_raw;
+        std::getline(initf, fen);
+        std::getline(initf, score_raw);
+        if (!initf) break;
+        float s = std::stoi(score_raw);
+        s = std::tanh(s);
+
+        Position pos(fen);
+        valid_scores.push_back(s);
+        fe.set_position(pos);
+        Features fs = fe.extract();
+        valid_features.push_back(fs);
+
+        ++n;
+    }
+
+    
 }
     
 } // namespace TD
