@@ -135,31 +135,43 @@ void play() {
     } // iterations iteration
 }
 
-void initialization_data_load(int valid_n, int train_n,
-                std::vector<Features>& valid_features, std::vector<float>& valid_targets,
-                std::vector<Features>& train_features, std::vector<float>& train_targets)
+void initialize(int valid_offset, valid_num,
+                int train_offset, int train_num,
+                int batch_size, int valid_frequency)
 {
     std::string filename = "../stockfish_init_scores.txt";
-    std::ifstream initf(filename);
+    std::ifstream init_file(filename);
         
-    if (!initf) {
+    if (!init_file) {
         std::cerr << "Failed to open " << filename << " for initialization" << std::endl;
         assert(false);
     }
-    
-    auto fe = FeatureExtractor();
 
-    int n = 0;
+    auto fe = FeatureExtractor();
     
     std::string line;
+
+    int n = 0;
+    while (n != valid_offset)
+        std::getline(init_file, line);
+
+    n = 0;
+
+    int examples = 0;
+    int batches = 0;
+
+    std::vector<Features> valid_features;
+    std::vector<float> valid_targets;
+    
+    std::vector<Features> train_features;
+    std::vector<float> train_targets;
+    
     while (true)
     {
         std::string fen;
         std::string score_raw;
-        std::getline(initf, fen);
-        std::getline(initf, score_raw);
-
-        if (!initf) break;
+        std::getline(init_file, fen);
+        std::getline(init_file, score_raw);
 
         float s = std::stoi(score_raw);
         s = std::tanh(s);
@@ -167,26 +179,38 @@ void initialization_data_load(int valid_n, int train_n,
         Position pos(fen);
         fe.set_position(pos);
         Features fs = fe.extract();
-
-        if (n < valid_n) {
-            valid_targets.push_back(s);
+        
+        if (n < valid_num) {
             valid_features.push_back(fs);
-        } else {
-            train_targets.push_back(s);
-            train_features.push_back(fs);
+            valid_targets.push_back(s);
         }
+        else
+        {
+            train_features.push_back(fs);
+            train_targets.push_back(s);
 
+            if (examples == batch_size)
+            {
+                train(train_features, train_targets);
+
+                if (batches > 0 && batches % valid_frequency == 0)
+                {
+                    validate_set_batch_size(batch_size);
+                    float accuracy = validate(valid_features, valid_targets);
+                    LG << accuracy;
+                }
+
+                ++batches;
+                train_features.clear();
+                train_targets.clear();
+                examples = 0;
+            }
+        }
+        
         ++n;
-        
-        if (n >= valid_n + train_n)
-            break;
-    }
-}
 
-void initialization_validate()
-{
-    for (int i = 0; i < 10; ++i) {
-        
+        if (n == (train_offset + train_num))
+            break;
     }
 }
     
