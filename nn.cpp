@@ -67,7 +67,7 @@ SlonikNet::SlonikNet()
     load_args_map(train_maps.args_map);
 }
 
-void SlonikNet::validate_set_batch_size(int batch_size)
+void SlonikNet::set_batch_size(int batch_size)
 {
     make_args_map(batch_size, other_maps);
     load_args_map(other_maps.args_map);

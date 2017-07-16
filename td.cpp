@@ -135,7 +135,7 @@ void play() {
     } // iterations iteration
 }
 
-void initialize(int valid_offset, valid_num,
+void initialize(int valid_offset, int valid_num,
                 int train_offset, int train_num,
                 int batch_size, int valid_frequency)
 {
@@ -147,7 +147,9 @@ void initialize(int valid_offset, valid_num,
         assert(false);
     }
 
-    auto fe = FeatureExtractor();
+    FeatureExtractor fe;
+    SlonikNet net;
+    net.set_batch_size(batch_size);
     
     std::string line;
 
@@ -191,12 +193,11 @@ void initialize(int valid_offset, valid_num,
 
             if (examples == batch_size)
             {
-                train(train_features, train_targets);
+                net.train(train_features, train_targets);
 
                 if (batches > 0 && batches % valid_frequency == 0)
                 {
-                    validate_set_batch_size(batch_size);
-                    float accuracy = validate(valid_features, valid_targets);
+                    float accuracy = net.validate(valid_features, valid_targets);
                     LG << accuracy;
                 }
 
