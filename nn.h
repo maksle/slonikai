@@ -53,14 +53,20 @@ class SlonikNet {
   mxnet::cpp::Symbol feature_group(std::string name, int hidden_size);
   void make_args_map(int batch_size, Slonik::NNMapsContainer& maps);
   void load_args_map(std::map<std::string, mxnet::cpp::NDArray>& args_map);
+  void validate_set_batch_size(int batch_size);
   void load_inputs_from_position(const Position& pos,
                                  std::vector<float> targets = std::vector<float>());
 
+  void load_data(std::vector<Features> features, std::vector<float> targets, Slonik::NNMapsContainer& maps);
+  
  public:
   SlonikNet();
 
   void fit();
   void fit(Slonik::NNMapsContainer& maps);
+
+  float validate(std::vector<Features> features, std::vector<float> targets);
+  
   /* void train(std::vector<std::vector<float>> features, std::vector<float> targets); */
   void train(std::vector< std::vector<std::vector<float>> > features, std::vector<float> targets);
   float forward_only();

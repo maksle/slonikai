@@ -135,7 +135,10 @@ void play() {
     } // iterations iteration
 }
 
-void initialize() {
+void initialization_data_load(int valid_n, int train_n,
+                std::vector<Features>& valid_features, std::vector<float>& valid_targets,
+                std::vector<Features>& train_features, std::vector<float>& train_targets)
+{
     std::string filename = "../stockfish_init_scores.txt";
     std::ifstream initf(filename);
         
@@ -144,37 +147,47 @@ void initialize() {
         assert(false);
     }
     
-    std::vector<Features> train_features;
-    std::vector<float> train_scores;
-
-    std::vector<Features> valid_features;
-    std::vector<float> valid_scores;
-
     auto fe = FeatureExtractor();
+
+    int n = 0;
     
     std::string line;
     while (true)
     {
-        int n = 0;
-
         std::string fen;
         std::string score_raw;
         std::getline(initf, fen);
         std::getline(initf, score_raw);
+
         if (!initf) break;
+
         float s = std::stoi(score_raw);
         s = std::tanh(s);
 
         Position pos(fen);
-        valid_scores.push_back(s);
         fe.set_position(pos);
         Features fs = fe.extract();
-        valid_features.push_back(fs);
+
+        if (n < valid_n) {
+            valid_targets.push_back(s);
+            valid_features.push_back(fs);
+        } else {
+            train_targets.push_back(s);
+            train_features.push_back(fs);
+        }
 
         ++n;
+        
+        if (n >= valid_n + train_n)
+            break;
     }
+}
 
-    
+void initialization_validate()
+{
+    for (int i = 0; i < 10; ++i) {
+        
+    }
 }
     
 } // namespace TD

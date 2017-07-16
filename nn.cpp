@@ -67,6 +67,67 @@ SlonikNet::SlonikNet()
     load_args_map(train_maps.args_map);
 }
 
+void SlonikNet::validate_set_batch_size(int batch_size)
+{
+    make_args_map(batch_size, other_maps);
+    load_args_map(other_maps.args_map);
+}
+
+float SlonikNet::validate(vector<Features> features, vector<float> targets)
+{
+    vector<float> global;
+    vector<float> pawn;
+    vector<float> piece;
+    vector<float> square;
+    for (auto& pos_features : features)
+    {
+        move(pos_features[0].begin(), pos_features[0].end(), back_inserter(global));
+        move(pos_features[1].begin(), pos_features[1].end(), back_inserter(pawn));
+        move(pos_features[2].begin(), pos_features[2].end(), back_inserter(piece));
+        move(pos_features[3].begin(), pos_features[3].end(), back_inserter(square));
+    }
+    
+    Optimizer* opt = OptimizerRegistry::Find("adam");
+    unique_ptr<Executor> exec { v.Bind(Context::cpu(),
+                                       other_maps.arg_arrays, other_maps.grad_arrays, other_maps.grad_reqs, other_maps.aux_arrays) };
+    
+    mx_uint batch_size = other_maps.args_map["label"].GetShape()[0];
+
+    mx_float rmse = 0.0f;
+    int num_batches = 0;
+    
+    int i = 0, j = batch_size;
+    while (j + batch_size <= targets.size())
+    {
+        other_maps.args_map["global_data"].SyncCopyFromCPU(global.data() + i, input_global_size * batch_size);
+        other_maps.args_map["pawn_data"].SyncCopyFromCPU(pawn.data() + i, input_pawn_size * batch_size);
+        other_maps.args_map["piece_data"].SyncCopyFromCPU(piece.data() + i, input_piece_size * batch_size);
+        other_maps.args_map["square_data"].SyncCopyFromCPU(square.data() + i, input_square_size * batch_size);
+        other_maps.args_map["label"].SyncCopyFromCPU(targets.data() + i, batch_size);
+        
+        exec->Forward(false);
+        NDArray::WaitAll();
+        
+        NDArray preds = exec->outputs[0];
+        std::vector<mx_float> preds_data;
+        preds.SyncCopyToCPU(&preds_data);
+        
+        mx_float sum = 0;
+        for (size_t k = 0; k < batch_size; ++k) {
+            mx_float diff = preds_data[k] - targets[i + k];
+            sum += diff * diff;
+        }
+        rmse += std::sqrt(sum / batch_size);
+        ++num_batches;
+        
+        i = j;
+        j += batch_size;
+    }
+
+    float accuracy = rmse / num_batches;
+    return accuracy;
+}
+
 void SlonikNet::make_args_map(int batch_size, Slonik::NNMapsContainer& maps)
 {
     maps.args_map["global_data"] = NDArray(Shape(batch_size, input_global_size), Context::cpu());
