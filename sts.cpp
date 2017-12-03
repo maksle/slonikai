@@ -139,7 +139,7 @@ int run_sts_test()
         }
         std::cout << std::endl;
 
-        break;
+        // break;
     }
 
     std::cout << "Final score: " << score << "\n";

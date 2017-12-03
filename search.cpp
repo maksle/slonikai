@@ -100,6 +100,9 @@ SearchOutput Search::iterative_deepening(Context& context)
         
         while (!finished)
         {
+            nodecnt = 0;
+            tthitcnt = 0;
+
             if (signals.stop) break;
             root_si->pv.clear();
             value = search<true>(context, context.root_position, root_si, alpha, beta, allowance);

@@ -1,5 +1,6 @@
 #include <vector>
 #include <iostream>
+#include <fstream>
 #include <chrono>
 #include "bb.h"
 #include "zobrist.h"
@@ -14,9 +15,8 @@
 #include "template.cpp"
 #include "package/mxnet-cpp/MxNetCpp.h"
 #include "nn.h"
-
+#include "td.h"
 #include "sts.h"
-
 // #include "sts.cpp"
 
 int main(int argc, char* argv[])
@@ -26,6 +26,68 @@ int main(int argc, char* argv[])
     Zobrist::init();
     TT.resize(256);
 
+
+    int valid_offset = 0;
+    int valid_num = 60000;
+    int train_offset = 60000;
+    int train_num = 295705 - valid_num;
+    int batch_size = 32;
+    int valid_frequency = 1024;
+    TD::initialize(valid_offset, valid_num, train_offset, train_num, batch_size, valid_frequency);
+    
+    // std::string filename = "/home/maksle/share/slonik_data/stockfish_init_scores.txt";
+    // std::string fen_fn = "/home/maksle/share/slonik_data/stockfish_init_fens.txt";
+    // std::string score_raw_fn = "/home/maksle/share/slonik_data/stockfish_init_scores_raw.txt";
+    // std::string score_std_fn = "/home/maksle/share/slonik_data/stockfish_init_scores_std.txt";
+    // // std::string filename = "/home/maksle/share/sts_scores.txt";
+    // std::ifstream train_stream(filename);
+    // std::ofstream fen_stream(fen_fn);
+    // std::ofstream score_raw_stream(score_raw_fn);
+    // std::ofstream score_std_stream(score_std_fn);
+    // // std::ifstream train_stream("../outtest.txt");
+    // // std::ofstream out_stream("../outtest.txt");
+    // int n = 0;
+    // std::string fen;
+    // std::string score;
+    
+    // float min = -6.604f;
+    // float max = 6.304f;
+    // float mean = 0.0271595f;
+    // float std = 0.524705f;
+    // // float min = 10;
+    // // float max = -10;
+    // float sum = 0;
+    
+    // while (train_stream) {
+    //     std::getline(train_stream, fen);
+    //     std::getline(train_stream, score);
+    //     if (!train_stream) break;
+        
+    //     float s = std::stoi(score)/1000.0f;
+    //     // float s = std::stoi(score);
+    //     n++;
+    //     // sum += s;
+    //     // if (s < min) min = s;
+    //     // if (s > max) max = s;
+        
+    //     // s = (s - mean) / std;
+    //     // s = (2.0f * (s - min) / (max - min)) - 1;
+    //     s = tanh(s / std);
+        
+    //     fen_stream << fen << std::endl;
+    //     score_raw_stream << score << std::endl;
+    //     score_std_stream << s << std::endl;
+    // }
+    
+    // std::cout << "sum " << sum << " n " << n << std::endl;
+    // std::cout << "min " << min << " max " << max << std::endl;
+    // std::cout << "avg " << sum / float(n) << std::endl;
+    
+    // mean: 0.0271595, min: -6.604, max: 6.304
+    // std: sqrt(average((x - x.mean())**2))
+    // normalize: (2 * (x - x.min()) / (x.max() - x.min())) - 1
+    // stdize: (x - x.mean()) / x.std()
+    
     // std::chrono::time_point<std::chrono::steady_clock> start = std::chrono::steady_clock::now();
     // STS::run_sts_test();
     // std::chrono::time_point<std::chrono::steady_clock> end = std::chrono::steady_clock::now();
@@ -40,17 +102,17 @@ int main(int argc, char* argv[])
     // std::cout << "short int: " << sizeof(short int) << std::endl;
     // std::cout << "TTEntry: " << sizeof(TTEntry) << std::endl;
     
-    int depth = 5;
+    // int depth = 5;
     // Position pos = Position("r4rk1/1pp1qppp/p1np1n2/2b1p1B1/2B1P1b1/P1NP1N2/1PP1QPPP/R4RK1 w - - 0 10");
     // Position pos = Position("8/2p5/3p4/KP5r/1R3p1k/8/4P1P1/8 w - - 0 0");
-    Position pos;
-    std::chrono::time_point<std::chrono::steady_clock> start = std::chrono::steady_clock::now();
-    int nodes = Search::perft<true>(pos, depth);
-    std::chrono::time_point<std::chrono::steady_clock> end = std::chrono::steady_clock::now();
-    std::chrono::duration<double> diff = end - start;
-    std::cout << "Depth: " << depth << std::endl;
-    std::cout << "Seconds: " << diff.count() << std::endl;
-    std::cout << "Nodes searched: " << nodes << std::endl;
+    // Position pos;
+    // std::chrono::time_point<std::chrono::steady_clock> start = std::chrono::steady_clock::now();
+    // int nodes = Search::perft<true>(pos, depth);
+    // std::chrono::time_point<std::chrono::steady_clock> end = std::chrono::steady_clock::now();
+    // std::chrono::duration<double> diff = end - start;
+    // std::cout << "Depth: " << depth << std::endl;
+    // std::cout << "Seconds: " << diff.count() << std::endl;
+    // std::cout << "Nodes searched: " << nodes << std::endl;
 
     // Position pos = Position();
     // // nntest(pos);
@@ -61,7 +123,7 @@ int main(int argc, char* argv[])
     
     // std::cout << "Total ms: " << diff.count() << std::endl;
     // std::cout << "Total ms: " << diff.count() << std::endl;
-    std::cout << "Nodes / second: " << nodes / diff.count() << std::endl;
+    // std::cout << "Nodes / second: " << nodes / diff.count() << std::endl;
     
     // std::cout << Bitboards::print_bb(pos.discoverers(BLACK)) << std::endl;
 

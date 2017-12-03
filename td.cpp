@@ -139,11 +139,18 @@ void initialize(int valid_offset, int valid_num,
                 int train_offset, int train_num,
                 int batch_size, int valid_frequency)
 {
-    std::string filename = "../stockfish_init_scores.txt";
-    std::ifstream init_file(filename);
+    std::string fens_fname = "/home/maksle/share/slonik_data/stockfish_init_fens.txt";
+    std::string scores_fname = "/home/maksle/share/slonik_data/stockfish_init_scores_std.txt";
+    std::ifstream fens_stream(fens_fname);
+    std::ifstream scores_stream(scores_fname);
         
-    if (!init_file) {
-        std::cerr << "Failed to open " << filename << " for initialization" << std::endl;
+    if (!fens_stream) {
+        std::cerr << "Failed to open " << fens_fname << " for initialization" << std::endl;
+        assert(false);
+    }
+
+    if (!scores_stream) {
+        std::cerr << "Failed to open " << scores_fname << " for initialization" << std::endl;
         assert(false);
     }
 
@@ -151,11 +158,12 @@ void initialize(int valid_offset, int valid_num,
     SlonikNet net;
     net.set_batch_size(batch_size);
     
-    std::string line;
+    // std::string line;
 
     int n = 0;
-    while (n != valid_offset)
-        std::getline(init_file, line);
+    // while (n != valid_offset)
+    //     std::getline(fens_stream, line);
+    //     std::getline(scores_stream, line);
 
     n = 0;
 
@@ -171,13 +179,11 @@ void initialize(int valid_offset, int valid_num,
     while (true)
     {
         std::string fen;
-        std::string score_raw;
-        std::getline(init_file, fen);
-        std::getline(init_file, score_raw);
-
-        float s = std::stoi(score_raw);
-        s = std::tanh(s);
-
+        std::string score;
+        std::getline(fens_stream, fen);
+        std::getline(scores_stream, score);
+        float s = std::stoi(score);
+        
         Position pos(fen);
         fe.set_position(pos);
         Features fs = fe.extract();
@@ -190,6 +196,7 @@ void initialize(int valid_offset, int valid_num,
         {
             train_features.push_back(fs);
             train_targets.push_back(s);
+            examples++;
 
             if (examples == batch_size)
             {

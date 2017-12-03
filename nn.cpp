@@ -137,7 +137,7 @@ void SlonikNet::make_args_map(int batch_size, Slonik::NNMapsContainer& maps)
     maps.args_map["label"] = NDArray(Shape(batch_size), Context::cpu());
     
     for (const auto &name : loss.ListArguments()) {
-        if (name == "label")
+        if (name == "label" || name.rfind("data") == name.length() - 4)
             maps.grad_req_type[name] = OpReqType::kNullOp;
         else
             maps.grad_req_type[name] = OpReqType::kWriteTo;
@@ -200,6 +200,28 @@ void SlonikNet::load_inputs_from_position(const Position& pos, vector<float> tar
     NDArray::WaitAll();
 }
 
+void load_data(std::vector<Features> features, std::vector<float> targets, Slonik::NNMapsContainer& maps) {
+    vector<float> global;
+    vector<float> pawn;
+    vector<float> piece;
+    vector<float> square;
+
+    for (auto& pos_features : features)
+    {
+        move(pos_features[0].begin(), pos_features[0].end(), back_inserter(global));
+        move(pos_features[1].begin(), pos_features[1].end(), back_inserter(pawn));
+        move(pos_features[2].begin(), pos_features[2].end(), back_inserter(piece));
+        move(pos_features[3].begin(), pos_features[3].end(), back_inserter(square));
+    }
+
+    maps.args_map["global_data"].SyncCopyFromCPU(global.data(), global.size());
+    maps.args_map["pawn_data"].SyncCopyFromCPU(pawn.data(), pawn.size());
+    maps.args_map["piece_data"].SyncCopyFromCPU(piece.data(), piece.size());
+    maps.args_map["square_data"].SyncCopyFromCPU(square.data(), square.size());
+    maps.args_map["label"].SyncCopyFromCPU(targets.data(), targets.size());
+    NDArray::WaitAll();
+}
+
 void SlonikNet::train(vector<Features> features, vector<float> targets) {
     vector<float> global;
     vector<float> pawn;
@@ -240,8 +262,8 @@ void SlonikNet::fit(Slonik::NNMapsContainer& maps)
     
     unique_ptr<Executor> exec { loss.SimpleBind(Context::cpu(), maps.args_map, maps.arg_grad_store, maps.grad_req_type, maps.aux_map) };
 
-    float learning_rate = 3e-5;
-    float weight_decay = 1e-4; // what should this be
+    float learning_rate = 1e-4;
+    float weight_decay = 0; // what should this be
     
     exec->Forward(true);
     exec->Backward();

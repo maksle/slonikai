@@ -64,6 +64,8 @@ class SlonikNet {
   void fit();
   void fit(Slonik::NNMapsContainer& maps);
 
+  void compile(std::unique_ptr<mxnet::cpp::Executor> executor, Slonik::NNMapsContainer& maps);
+  
   void set_batch_size(int batch_size);
   
   float validate(std::vector<Features> features, std::vector<float> targets);

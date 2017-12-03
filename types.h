@@ -184,11 +184,8 @@ inline Move make_move(Square from_sq, Square to_sq) {
   return Move(from_sq + (to_sq << 6));
 }
 
-/* #include <iostream> */
 template<MoveType T>
 inline Move make_move(Square from_sq, Square to_sq, PieceType pt = KNIGHT) {
-  /* std::cout << "movetype T is " << T << std::endl; */
-  /* std::cout << "parameters are " << T << make_move(from_sq, to_sq) << " " << pt << std::endl; */
   return Move(T + ((pt - KNIGHT) << 12) + from_sq + (to_sq << 6));
 }
 

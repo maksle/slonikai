@@ -295,5 +295,6 @@ std::vector<ProbMove> evaluate_moves(const Position& pos, const std::vector<Move
             pmoves.emplace_back(m, .1);
     }
     std::sort(pmoves.rbegin(), pmoves.rend());
+
     return pmoves;
 }
