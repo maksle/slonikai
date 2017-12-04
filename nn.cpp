@@ -69,8 +69,15 @@ SlonikNet::SlonikNet()
 
 void SlonikNet::set_batch_size(int batch_size)
 {
-    make_args_map(batch_size, other_maps);
-    load_args_map(other_maps.args_map);
+    make_args_map(batch_size, train_maps);
+    load_args_map(train_maps.args_map);
+}
+
+void SlonikNet::compile()
+{
+    Optimizer* opt = OptimizerRegistry::Find("adam");
+    this->optimizer = std::unique_ptr<Optimizer>(opt);
+    this->executor = std::unique_ptr<Executor> { loss.Bind(Context::cpu(), train_maps.arg_arrays, train_maps.grad_arrays, train_maps.grad_reqs, train_maps.aux_arrays) };
 }
 
 float SlonikNet::validate(vector<Features> features, vector<float> targets)
@@ -87,11 +94,11 @@ float SlonikNet::validate(vector<Features> features, vector<float> targets)
         move(pos_features[3].begin(), pos_features[3].end(), back_inserter(square));
     }
     
-    Optimizer* opt = OptimizerRegistry::Find("adam");
-    unique_ptr<Executor> exec { v.Bind(Context::cpu(),
-                                       other_maps.arg_arrays, other_maps.grad_arrays, other_maps.grad_reqs, other_maps.aux_arrays) };
+    // Optimizer* opt = OptimizerRegistry::Find("adam");
+    // unique_ptr<Executor> exec { v.Bind(Context::cpu(),
+    //                                    train_maps.arg_arrays, train_maps.grad_arrays, train_maps.grad_reqs, train_maps.aux_arrays) };
     
-    mx_uint batch_size = other_maps.args_map["label"].GetShape()[0];
+    mx_uint batch_size = train_maps.args_map["label"].GetShape()[0];
 
     mx_float rmse = 0.0f;
     int num_batches = 0;
@@ -99,16 +106,16 @@ float SlonikNet::validate(vector<Features> features, vector<float> targets)
     int i = 0, j = batch_size;
     while (j + batch_size <= targets.size())
     {
-        other_maps.args_map["global_data"].SyncCopyFromCPU(global.data() + i, input_global_size * batch_size);
-        other_maps.args_map["pawn_data"].SyncCopyFromCPU(pawn.data() + i, input_pawn_size * batch_size);
-        other_maps.args_map["piece_data"].SyncCopyFromCPU(piece.data() + i, input_piece_size * batch_size);
-        other_maps.args_map["square_data"].SyncCopyFromCPU(square.data() + i, input_square_size * batch_size);
-        other_maps.args_map["label"].SyncCopyFromCPU(targets.data() + i, batch_size);
+        train_maps.args_map["global_data"].SyncCopyFromCPU(global.data() + i, input_global_size * batch_size);
+        train_maps.args_map["pawn_data"].SyncCopyFromCPU(pawn.data() + i, input_pawn_size * batch_size);
+        train_maps.args_map["piece_data"].SyncCopyFromCPU(piece.data() + i, input_piece_size * batch_size);
+        train_maps.args_map["square_data"].SyncCopyFromCPU(square.data() + i, input_square_size * batch_size);
+        train_maps.args_map["label"].SyncCopyFromCPU(targets.data() + i, batch_size);
         
-        exec->Forward(false);
+        executor->Forward(false);
         NDArray::WaitAll();
         
-        NDArray preds = exec->outputs[0];
+        NDArray preds = executor->outputs[0];
         std::vector<mx_float> preds_data;
         preds.SyncCopyToCPU(&preds_data);
         
@@ -137,7 +144,7 @@ void SlonikNet::make_args_map(int batch_size, Slonik::NNMapsContainer& maps)
     maps.args_map["label"] = NDArray(Shape(batch_size), Context::cpu());
     
     for (const auto &name : loss.ListArguments()) {
-        if (name == "label" || name.rfind("data") == name.length() - 4)
+        if (name == "label"/* || name.rfind("data") == name.length() - 4*/)
             maps.grad_req_type[name] = OpReqType::kNullOp;
         else
             maps.grad_req_type[name] = OpReqType::kWriteTo;
@@ -200,7 +207,7 @@ void SlonikNet::load_inputs_from_position(const Position& pos, vector<float> tar
     NDArray::WaitAll();
 }
 
-void load_data(std::vector<Features> features, std::vector<float> targets, Slonik::NNMapsContainer& maps) {
+void SlonikNet::load_data(std::vector<Features> features, std::vector<float> targets, Slonik::NNMapsContainer& maps) {
     vector<float> global;
     vector<float> pawn;
     vector<float> piece;
@@ -223,30 +230,8 @@ void load_data(std::vector<Features> features, std::vector<float> targets, Sloni
 }
 
 void SlonikNet::train(vector<Features> features, vector<float> targets) {
-    vector<float> global;
-    vector<float> pawn;
-    vector<float> piece;
-    vector<float> square;
-
-    for (auto& pos_features : features)
-    {
-        move(pos_features[0].begin(), pos_features[0].end(), back_inserter(global));
-        move(pos_features[1].begin(), pos_features[1].end(), back_inserter(pawn));
-        move(pos_features[2].begin(), pos_features[2].end(), back_inserter(piece));
-        move(pos_features[3].begin(), pos_features[3].end(), back_inserter(square));
-    }
-    
-    make_args_map(targets.size(), other_maps);
-    load_args_map(other_maps.args_map);
-
-    other_maps.args_map["global_data"].SyncCopyFromCPU(global.data(), global.size());
-    other_maps.args_map["pawn_data"].SyncCopyFromCPU(pawn.data(), pawn.size());
-    other_maps.args_map["piece_data"].SyncCopyFromCPU(piece.data(), piece.size());
-    other_maps.args_map["square_data"].SyncCopyFromCPU(square.data(), square.size());
-    other_maps.args_map["label"].SyncCopyFromCPU(targets.data(), targets.size());
-    NDArray::WaitAll();
-
-    fit(other_maps);
+    load_data(features, targets, train_maps);
+    fit(train_maps);
 }
 
 float SlonikNet::evaluate(const Position& pos) {
@@ -258,16 +243,16 @@ void SlonikNet::fit() { fit(train_maps); }
 
 void SlonikNet::fit(Slonik::NNMapsContainer& maps)
 {
-    Optimizer* opt = OptimizerRegistry::Find("adam");
+    // Optimizer* opt = OptimizerRegistry::Find("adam");
     
-    unique_ptr<Executor> exec { loss.SimpleBind(Context::cpu(), maps.args_map, maps.arg_grad_store, maps.grad_req_type, maps.aux_map) };
+    // unique_ptr<Executor> exec { loss.SimpleBind(Context::cpu(), maps.args_map, maps.arg_grad_store, maps.grad_req_type, maps.aux_map) };
 
     float learning_rate = 1e-4;
     float weight_decay = 0; // what should this be
     
-    exec->Forward(true);
-    exec->Backward();
-    exec->UpdateAll(opt, learning_rate, weight_decay);
+    executor->Forward(true);
+    executor->Backward();
+    executor->UpdateAll(optimizer.get(), learning_rate, weight_decay);
     NDArray::WaitAll();
 }
 

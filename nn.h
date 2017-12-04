@@ -40,6 +40,9 @@ class SlonikNet {
   int hidden_square_size = 32;
 
   int hidden_shared_size = 64;
+
+  std::unique_ptr<mxnet::cpp::Executor> executor;
+  std::unique_ptr<mxnet::cpp::Optimizer> optimizer;
   
   mxnet::cpp::Symbol v;
   mxnet::cpp::Symbol target;
@@ -64,7 +67,7 @@ class SlonikNet {
   void fit();
   void fit(Slonik::NNMapsContainer& maps);
 
-  void compile(std::unique_ptr<mxnet::cpp::Executor> executor, Slonik::NNMapsContainer& maps);
+  void compile();
   
   void set_batch_size(int batch_size);
   

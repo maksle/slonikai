@@ -139,8 +139,10 @@ void initialize(int valid_offset, int valid_num,
                 int train_offset, int train_num,
                 int batch_size, int valid_frequency)
 {
-    std::string fens_fname = "/home/maksle/share/slonik_data/stockfish_init_fens.txt";
-    std::string scores_fname = "/home/maksle/share/slonik_data/stockfish_init_scores_std.txt";
+    // std::string data_path = "/home/maksle/share/slonik_data/"
+    std::string data_path = "/home/maks/projects/slonik_data/";
+    std::string fens_fname = data_path + "stockfish_init_fens.txt";
+    std::string scores_fname = data_path + "stockfish_init_scores_std.txt";
     std::ifstream fens_stream(fens_fname);
     std::ifstream scores_stream(scores_fname);
         
@@ -156,7 +158,8 @@ void initialize(int valid_offset, int valid_num,
 
     FeatureExtractor fe;
     SlonikNet net;
-    net.set_batch_size(batch_size);
+    net.compile();
+    // net.set_batch_size(batch_size);
     
     // std::string line;
 
