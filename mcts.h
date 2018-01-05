@@ -18,13 +18,12 @@ const int NO_EVAL = 10;
 struct MCTSEdge {
   int N = 0;
   int Q = 0;
-  float Pnn;
+  float Pnn = 0;
 };
 
 struct MCTSNode {
   int N = 0;
-  float Vnn;
-  map<Move, MCTSEdge> edges;
+  float Vnn = 0;
 };
 
 typedef tuple<float, vector<float>> PositionEvaluation;
@@ -68,6 +67,7 @@ typename vector<T>::const_iterator
 random_choice(const vector<T>& choices) {
   std::random_device rd;
   std::mt19937 mt(rd());
+  /* std::cout << ":" << choices.size() << std::endl; */
   std::uniform_int_distribution<> dis(0, choices.size() - 1);
   auto it = choices.begin();
   std::advance(it, dis(mt));

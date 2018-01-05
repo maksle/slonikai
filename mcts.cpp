@@ -5,11 +5,14 @@
 
 
 bool game_over(const Position& position) {
-    MoveGen<ALL_LEGAL>(position).moves.size() == 0;
+    return MoveGen<ALL_LEGAL>(position).moves.size() == 0
+        || position.arbiter_draw()
+        || position.insufficient_material();
 }
 
 MCTS::MCTS(string s0, int max_simulations, float c, float w_r, float w_v, float w_a)
-    : s0(s0), max_simulations(max_simulations), c(c), w_r(w_r), w_v(w_v), w_a(w_a)
+    : s0(s0), max_simulations(max_simulations), c(c), w_r(w_r), w_v(w_v), w_a(w_a),
+      simulations(0)
 {
     if (w_a < 0)
         w_a = max_simulations / 35.0f;
@@ -27,15 +30,13 @@ bool MCTS::time_available() {
 
 void MCTS::simulate(Position position) {
     simulations++;
-    cout << ".." << simulations << endl;
+    // cout << ".." << simulations << endl;
     auto states_actions = sim_tree(position);
-
     float z;
     if (w_r > 0)
         float z = sim_default(Position(get_state(position)));
     else
         float z = 0;
-
     backup(states_actions, z);
 }
 
@@ -68,6 +69,7 @@ float MCTS::sim_default(Position position) {
     while (!game_over(position))
     {
         Move a = default_policy(position);
+        // cout << a << endl;
         position.make_move(a);
     }
     Side stm = position.side_to_move();

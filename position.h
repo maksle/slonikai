@@ -78,7 +78,7 @@ public:
     Bitboard pinned(Side s) const;
     bool is_legal(Move move) const;
     bool arbiter_draw() const;
-    bool insuficient_material() const;
+    bool insufficient_material() const;
 
     friend std::ostream& operator<<(std::ostream& os, const Position& pos);
 };

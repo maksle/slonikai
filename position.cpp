@@ -655,7 +655,7 @@ const std::string Position::fen() const {
 bool Position::arbiter_draw() const {
     const PositionState& ps = states.back();
 
-    if (ps.halfmove_clock >= 50)
+    if (ps.halfmove_clock >= 100)
         return true;
     
     for (std::vector<PositionState>::const_reverse_iterator it = states.rbegin();
@@ -666,6 +666,22 @@ bool Position::arbiter_draw() const {
             return true;
     }
 
+    return false;
+}
+
+// Some very basic detection
+bool Position::insufficient_material() const {
+    if (pieces(QUEEN) || pieces(ROOK) || pieces(PAWN))
+        return false;
+    
+    int nb_pcs = popcount(pieces());
+
+    if (nb_pcs == 2)
+        return true;
+    
+    if (nb_pcs == 3 && (pieces(KNIGHT) || pieces(BISHOP)))
+        return true;
+    
     return false;
 }
 
@@ -683,10 +699,3 @@ Key Position::key_after(Move m) const
 
     return k ^= Zobrist::psqs[from][pc] ^ Zobrist::psqs[to][pc];
 }
-
-// bool Position::insufficient_material() const {
-//     if (pos.pieces(QUEEN) || pos.pieces(ROOK) || pos.pieces(PAWN))
-//         return false;
-
-//     if (!pos.pieces(KNIGHT, WHITE) && !pos.pieces())
-// }
