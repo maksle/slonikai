@@ -122,7 +122,7 @@ void play() {
 
                 // bool is_fixed = eval_is_fixed(leaf, leaf_val)
 
-                net.train(features, targets);
+                net.fit(features, targets);
 
                 // if (is_fixed) break;
 
@@ -135,30 +135,16 @@ void play() {
     } // iterations iteration
 }
 
-void initialize(int valid_offset, int valid_num,
-                int train_offset, int train_num,
-                int batch_size, int valid_frequency)
+void initialize()
 {
-    // std::string data_path = "/home/maksle/share/slonik_data/"
-    std::string data_path = "/home/maks/projects/slonik_data/";
-    std::string fens_fname = data_path + "stockfish_init_fens.txt";
-    std::string scores_fname = data_path + "stockfish_init_scores_std.txt";
-    std::ifstream fens_stream(fens_fname);
-    std::ifstream scores_stream(scores_fname);
-        
-    if (!fens_stream) {
-        std::cerr << "Failed to open " << fens_fname << " for initialization" << std::endl;
-        assert(false);
-    }
-
-    if (!scores_stream) {
-        std::cerr << "Failed to open " << scores_fname << " for initialization" << std::endl;
-        assert(false);
-    }
+    int batch_size = 32;
+    int train_num = 235705;
+    int valid_frequency = 16384;
+    int valid_num = 60000;
 
     FeatureExtractor fe;
     SlonikNet net;
-    net.compile();
+    // return;
     // net.set_batch_size(batch_size);
     
     // std::string line;
@@ -179,31 +165,87 @@ void initialize(int valid_offset, int valid_num,
     std::vector<Features> train_features;
     std::vector<float> train_targets;
     
-    while (true)
-    {
+    int epochs = 11;
+    
+    std::string data_path = "/home/maksle/share/slonik_data/shuffled/";
+    // std::string data_path = "/home/maks/projects/slonik_data/shuffled/";
+
+    std::ifstream fens_valid_stream(data_path + "fen_valid.txt");
+    std::ifstream scores_valid_stream(data_path + "score_valid.txt");
+    
+    if (!fens_valid_stream) {
+        std::cerr << "Failed to open fens validation file" << std::endl;
+        assert(false);
+    }
+
+    if (!scores_valid_stream) {
+        std::cerr << "Failed to open scores validation for initialization" << std::endl;
+        assert(false);
+    }
+    
+    for (int v = 0; v < valid_num; v++) {
         std::string fen;
         std::string score;
-        std::getline(fens_stream, fen);
-        std::getline(scores_stream, score);
-        float s = std::stoi(score);
+        std::getline(fens_valid_stream, fen);
+        std::getline(scores_valid_stream, score);
+        float s = std::stof(score);
         
         Position pos(fen);
         fe.set_position(pos);
         Features fs = fe.extract();
         
-        if (n < valid_num) {
-            valid_features.push_back(fs);
-            valid_targets.push_back(s);
+        valid_features.push_back(fs);
+        valid_targets.push_back(s);
+    }
+    
+    float accuracy = net.validate(valid_features, valid_targets);
+    LG << accuracy;
+    
+    for (int i = 0; i < epochs; i++) {
+        // float accuracy = net.validate(valid_features, valid_targets);
+        // LG << accuracy;
+
+        std::stringstream ss;
+        std::string fens_fname;
+        ss << data_path << "fen" << i << ".txt";
+        ss >> fens_fname;
+        std::ifstream fens_stream(fens_fname);
+        if (!fens_stream) {
+            std::cerr << "Failed to open fens file" << fens_fname << std::endl;
+            assert(false);
         }
-        else
+
+        ss.clear();
+        ss.str(std::string());
+        std::string scores_fname;
+        ss << data_path << "score" << i << ".txt";
+        ss >> scores_fname;
+        std::ifstream scores_stream(scores_fname);
+        if (!scores_stream) {
+            std::cerr << "Failed to open scores file" << scores_fname << std::endl;
+            assert(false);
+        }
+        
+        for (int k = 0; k < train_num; k++)
         {
+            std::string fen;
+            std::string score;
+            std::getline(fens_stream, fen);
+            std::getline(scores_stream, score);
+            float s = std::stof(score);
+            
+            Position pos(fen);
+            fe.set_position(pos);
+            Features fs = fe.extract();
+            
             train_features.push_back(fs);
             train_targets.push_back(s);
             examples++;
-
+            
             if (examples == batch_size)
             {
-                net.train(train_features, train_targets);
+                net.fit(train_features, train_targets);
+                // exit(0);
 
                 if (batches > 0 && batches % valid_frequency == 0)
                 {
@@ -217,11 +259,12 @@ void initialize(int valid_offset, int valid_num,
                 examples = 0;
             }
         }
-        
-        ++n;
+        float accuracy = net.validate(valid_features, valid_targets);
+        LG << accuracy;
 
-        if (n == (train_offset + train_num))
-            break;
+        std::stringstream checkpoint_name;
+        checkpoint_name << "epoch_" << i << "_vloss_" << accuracy << ".params";
+        net.save(checkpoint_name.str());
     }
 }
     

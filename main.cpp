@@ -18,6 +18,7 @@
 #include "td.h"
 #include "sts.h"
 // #include "sts.cpp"
+#include "mcts.h"
 
 int main(int argc, char* argv[])
 {
@@ -26,14 +27,56 @@ int main(int argc, char* argv[])
     Zobrist::init();
     TT.resize(256);
 
+    std::string s0 = "r4rk1/1pp1qppp/p1np1n2/2b1p1B1/2B1P1b1/P1NP1N2/1PP1QPPP/R4RK1 w - - 0 10";
+    auto mcts = MCTS(s0, 800, 1.1414, 1.0, 0.0, 0.0);
+    Move move = mcts.search();
+    std::cout << move << std::endl;
+    for (const auto& m : mcts.pv(s0)) {
+        std::cout << m << " ";
+    }
+    std::cout << std::endl;
+    
+    // TD::initialize();
 
-    int valid_offset = 0;
-    int valid_num = 60000;
-    int train_offset = 60000;
-    int train_num = 295705 - valid_num;
-    int batch_size = 32;
-    int valid_frequency = 1024;
-    TD::initialize(valid_offset, valid_num, train_offset, train_num, batch_size, valid_frequency);
+    // SlonikNet net;
+
+    // auto args_map = net.executor->arg_dict();
+    // for (const auto& kv : args_map) {
+    //     LG << kv.first;
+    //     LG << kv.second;
+    //     LG << " ";
+    // }
+    
+    // float accuracy = net.validate(valid_features, valid_targets);
+    // LG << accuracy;
+    
+    // std::string name = "test.params";
+    // net.save(name);
+
+    // delete net;
+
+    // Sloniknet net2;
+    
+
+    // SlonikNet net;
+
+    // std::string filename= "../outtest.txt";
+    // std::ifstream fstream(filename);
+    // std::string val;
+    // std::streampos pos;
+    // for (int i = 0; i < 6; ++i) {
+    //     std::getline(fstream, val);
+    //     if (i == 4) {
+    //         pos = fstream.tellg();
+    //         std::cout << "pos at 4 is " << pos << ", val is " << val << std::endl;
+    //     }
+    //     std::cout << fstream.good() << std::endl;
+    // }
+    // fstream.seekg(pos);
+    // std::cout << "set pos to " << pos << std::endl;
+    // std::cout << "stream is good?: " << fstream.good() << std::endl;
+    // std::getline(fstream, val);
+    // std::cout << val << std::endl;
     
     // std::string filename = "/home/maksle/share/slonik_data/stockfish_init_scores.txt";
     // std::string fen_fn = "/home/maksle/share/slonik_data/stockfish_init_fens.txt";
