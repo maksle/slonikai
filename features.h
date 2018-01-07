@@ -13,7 +13,7 @@ private:
     PieceType lowest[SIDE_NB][SQUARE_NB];
 
 public:
-    std::vector<std::vector<float>> extract();
+    std::vector<std::vector<float> > extract();
     int int_lowest(Side side, Square sq);
     void set_position(const Position& position);
     void set_attacks();

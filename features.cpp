@@ -32,7 +32,7 @@ void FeatureExtractor::set_position(const Position& position) {
     pos = &position;
 }
 
-std::vector<std::vector<float>> FeatureExtractor::extract() {
+std::vector<std::vector<float> > FeatureExtractor::extract() {
     std::vector<float> g;       // global
     std::vector<float> p;       // pawn-centric
     std::vector<float> np;      // piece-centric
@@ -75,7 +75,7 @@ std::vector<std::vector<float>> FeatureExtractor::extract() {
     lowest_attackers<WHITE>(s);
     lowest_attackers<BLACK>(s);
 
-    return std::vector<std::vector<float>> { g, p, np, s};
+    return std::vector<std::vector<float> > { g, p, np, s};
 }
 
 void FeatureExtractor::castling_rights(std::vector<float>& f) {

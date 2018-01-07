@@ -2,6 +2,7 @@
 #include <iostream>
 #include <fstream>
 #include <chrono>
+#include <cmath>
 #include "bb.h"
 #include "zobrist.h"
 #include "magics.h"
@@ -27,14 +28,24 @@ int main(int argc, char* argv[])
     Zobrist::init();
     TT.resize(256);
 
+    string sims_ = argv[1];
+    int sims = stoi(sims_);
+    
+    std::chrono::time_point<std::chrono::steady_clock> start = std::chrono::steady_clock::now();
+    
     std::string s0 = "r4rk1/1pp1qppp/p1np1n2/2b1p1B1/2B1P1b1/P1NP1N2/1PP1QPPP/R4RK1 w - - 0 10";
-    auto mcts = MCTS(s0, 800, 1.1414, 1.0, 0.0, 0.0);
+    auto mcts = MCTS(s0, sims, sqrt(2), 1.0, 0.0, 0.0);
     Move move = mcts.search();
     std::cout << move << std::endl;
     for (const auto& m : mcts.pv(s0)) {
         std::cout << m << " ";
     }
     std::cout << std::endl;
+
+    std::chrono::time_point<std::chrono::steady_clock> end = std::chrono::steady_clock::now();
+    
+    std::chrono::duration<double> diff = end - start;
+    std::cout << "secs: " << diff.count() << std::endl;
     
     // TD::initialize();
 

@@ -1,27 +1,41 @@
 #include <iostream>
 #include "mcts.h"
 #include "position.h"
-#include "movegen.h"
+#include "bb.h"
 
 
-bool game_over(const Position& position) {
-    return MoveGen<ALL_LEGAL>(position).moves.size() == 0
-        || position.arbiter_draw()
-        || position.insufficient_material();
+enum GameTerminationReason {
+    NONE, NO_MOVES, INSUFFICIENT_MATERIAL, NO_PROGRESS
+};
+
+bool game_over(const Position& position, GameTerminationReason& reason) {
+    if (MoveGen<ALL_LEGAL>(position).moves.size() == 0) {
+        reason = NO_MOVES;
+        return true;
+    }
+    if (position.arbiter_draw()) {
+        reason = NO_PROGRESS;
+        return true;
+    }
+    if (position.insufficient_material()) {
+        reason = INSUFFICIENT_MATERIAL;
+        return true;
+    }
+    return false;
 }
 
 MCTS::MCTS(string s0, int max_simulations, float c, float w_r, float w_v, float w_a)
-    : s0(s0), max_simulations(max_simulations), c(c), w_r(w_r), w_v(w_v), w_a(w_a),
-      simulations(0)
+    : s0(s0), max_simulations(max_simulations), c(c), w_r(w_r), w_v(w_v), w_a(w_a), simulations(0)
 {
     if (w_a < 0)
         w_a = max_simulations / 35.0f;
 }
 
 Move MCTS::search() {
+    Position root = Position(s0);
     while (time_available())
-        simulate(Position(s0));
-    return select_move(Position(s0), 0);
+        simulate(root);
+    return select_move(root, 0);
 }
 
 bool MCTS::time_available() {
@@ -30,52 +44,61 @@ bool MCTS::time_available() {
 
 void MCTS::simulate(Position position) {
     simulations++;
-    // cout << ".." << simulations << endl;
     auto states_actions = sim_tree(position);
     float z;
     if (w_r > 0)
-        float z = sim_default(Position(get_state(position)));
+        z = sim_default(position);
     else
-        float z = 0;
+        z = 0;
     backup(states_actions, z);
 }
 
-vector<tuple<string, Move> > MCTS::sim_tree(Position position) {
+vector<tuple<string, Move> > MCTS::sim_tree(Position& position) {
     vector<tuple<string, Move> > states_actions;
-    while (!game_over(position))
+    string s = get_state(position);
+    string prev_s(s); 
+    GameTerminationReason reason;
+    while (!game_over(position, reason))
     {
-        string s = get_state(position);
+        s = get_state(position);
         if (!tree.count(s))
         {
-            new_node(s);
-            states_actions.push_back(make_tuple(s, MOVE_NONE));
+            if (prev_s == s || tree.at(prev_s).N > 1) {
+                new_node(s);
+                states_actions.push_back(make_tuple(s, MOVE_NONE));
+            }
             break;
         }
         Move a = select_move(position, this->c);
         states_actions.push_back(make_tuple(s, a));
         position.make_move(a);
+        prev_s = s;
     }
     return states_actions;
 }
 
-Move MCTS::default_policy(Position position) {
+Move MCTS::default_policy(const Position& position) {
     vector<Move> legal = MoveGen<ALL_LEGAL>(position).moves;
-    // vector<Move> legal;
-    // generate<ALL_PSEUDO>(pos, moves);
-    return * random_choice<>(legal);
+    return *(random_choice.select<>(legal));
 }
 
 float MCTS::sim_default(Position position) {
-    while (!game_over(position))
+    GameTerminationReason reason;
+    while (!game_over(position, reason))
     {
         Move a = default_policy(position);
-        // cout << a << endl;
         position.make_move(a);
     }
+
+    float result = 0.0;
     Side stm = position.side_to_move();
-    if (stm == BLACK && position.checkers()) return 1.0;
-    else if (stm == WHITE && position.checkers()) return -1.0;
-    else return 0.0;
+    if (reason == NO_MOVES && position.checkers())
+        if (stm == BLACK) // black is checkmated
+            result = 1.0;
+        else
+            result -1.0;
+
+    return result;
 }
 
 void MCTS::new_node(string s) {
@@ -98,12 +121,12 @@ void MCTS::new_node(string s) {
     if (usingNN) {
         node.Vnn = v;
     }
-    tree[s] = node;
+    tree.emplace(std::make_pair(s, std::move(node)));
 
-    vector<Move> legal = MoveGen<ALL_LEGAL>(position).moves;
+    vector<Move> legal = get_actions(position);
     for (const auto& m : legal)
     {
-        MCTSEdge edge;
+        MCTSNode edge;
         edge.Pnn = 0;
         if (usingNN && this->w_a) {
             // int index = move_to_index(m);
@@ -112,15 +135,39 @@ void MCTS::new_node(string s) {
         }
         edge.Q = 0;
         edge.N = 0;
-        tree[s].edges[m] = edge;
+        tree.emplace(std::make_pair(edge_key(s, m), std::move(edge)));
+        // tree[edge_key(s, m)] = edge;
     }
 }
 
-float MCTS::uct_value(string s, Move a, float c, float w_a, float w_v) {
-    MCTSNode node = tree[s];
-    MCTSEdge edge = tree[s].edges[a];
+string MCTS::edge_key(string s, Move a) const {
+    Square from = from_sq(a);
+    Square to = to_sq(a);
+    MoveType mt = type_of(a);
+    
+    string res = s;
+    res += char(file_of(from) + 'a');
+    res += char(rank_of(from) + '1');
+    res += char(file_of(to) + 'a');
+    res += char(rank_of(to) + '1');
+    if (mt == PROMOTION) {
+        PieceType bt = promo_piece(a);
+        if (bt != QUEEN && bt != PIECETYPE_NONE) {
+            res += PieceToChar[bt + 6 /*lowercase*/];
+        }
+    }
+    return res;
+}
 
-    float uct = std::numeric_limits<float>::infinity();
+float MCTS::lookup_Q(string s, Move a) const {
+    return (tree.find(edge_key(s, a))->second).Q;
+}
+
+float MCTS::uct_value(string s, Move a, float c, float w_a, float w_v) const {
+    MCTSNode node = tree.at(s);
+    MCTSNode edge = tree.at(edge_key(s, a));
+
+    float uct = 0;
     if (edge.N > 0)
         uct = c * sqrt(log(node.N) / edge.N);
 
@@ -136,16 +183,11 @@ float MCTS::uct_value(string s, Move a, float c, float w_a, float w_v) {
     return uct + policy_prior_bonus + value_prior_bonus;
 }
 
-float MCTS::lookup_Q(string s, Move a) {
-    MCTSEdge edge = tree[s].edges[a];
-    return edge.Q;
-}
-
-vector<Move> MCTS::pv(string s0) {
+vector<Move> MCTS::pv(string s0) const {
     Position position = Position(s0);
     vector<Move> actions;
     string s = s0;
-    while (!tree.count(s)) {
+    while (tree.count(s)) {
         Move a = select_move(position, 0);
         position.make_move(a);
         actions.push_back(a);
@@ -154,17 +196,23 @@ vector<Move> MCTS::pv(string s0) {
     return actions;
 }
 
-Move MCTS::select_move(Position position, float c) {
+Move MCTS::select_move(const Position& position, float c) const {
     string s = get_state(position);
-    vector<Move> legal = MoveGen<ALL_LEGAL>(position).moves;
+    vector<Move> legal = get_actions(position);
 
     Move best_move;
     float best_val = NO_EVAL;
 
+    Side stm = position.side_to_move();
+    
     for (const auto& a : legal) {
         float Q = lookup_Q(s, a);
         float uct = uct_value(s, a, c, this->w_a, this->w_v);
-        if (best_val == NO_EVAL || (Q + uct) > best_val) {
+        float QU = Q + uct;
+        if (stm == BLACK)
+            QU = -QU;
+        if (best_val == NO_EVAL || QU > best_val)
+        {
             best_val = Q + uct;
             best_move = a;
         }
@@ -173,14 +221,14 @@ Move MCTS::select_move(Position position, float c) {
     return best_move;
 }
 
-void MCTS::backup(vector<tuple<string, Move> > states_actions, float z) {
+void MCTS::backup(const vector<tuple<string, Move> >& states_actions, float z) {
     for (const auto& s_a : states_actions) {
         string s = std::get<0>(s_a);
         Move a = std::get<1>(s_a);
-        MCTSNode node = tree[s];
+        MCTSNode& node = tree.at(s);
         node.N++;
         if (a != MOVE_NONE) {
-            MCTSEdge edge = tree[s].edges[a];
+            MCTSNode& edge = tree.at(edge_key(s, a));
             edge.N++;
             // v = (1 - this->w_r) * s_prime_node.Vnn + this->w_r * z;
             float v = z;
@@ -189,14 +237,14 @@ void MCTS::backup(vector<tuple<string, Move> > states_actions, float z) {
     }
 }
 
-vector<Move> MCTS::get_actions(Position position) {
+vector<Move> MCTS::get_actions(const Position& position) const {
     return MoveGen<ALL_LEGAL>(position).moves;
 }
 
-vector<Move> MCTS::get_actions(string s) {
+vector<Move> MCTS::get_actions(string s) const {
     return get_actions(Position(s));
 }
 
-string MCTS::get_state(const Position& position) {
+string MCTS::get_state(const Position& position) const {
     return position.fen();
 }
