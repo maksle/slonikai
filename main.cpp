@@ -20,6 +20,7 @@
 #include "sts.h"
 // #include "sts.cpp"
 #include "mcts.h"
+#include <omp.h>
 
 int main(int argc, char* argv[])
 {
@@ -33,17 +34,44 @@ int main(int argc, char* argv[])
     
     std::chrono::time_point<std::chrono::steady_clock> start = std::chrono::steady_clock::now();
     
-    std::string s0 = "r4rk1/1pp1qppp/p1np1n2/2b1p1B1/2B1P1b1/P1NP1N2/1PP1QPPP/R4RK1 w - - 0 10";
-    auto mcts = MCTS(s0, sims, sqrt(2), 1.0, 0.0, 0.0);
-    Move move = mcts.search();
-    std::cout << move << std::endl;
-    for (const auto& m : mcts.pv(s0)) {
-        std::cout << m << " ";
-    }
-    std::cout << std::endl;
-
-    std::chrono::time_point<std::chrono::steady_clock> end = std::chrono::steady_clock::now();
+    std::vector<string> fens {
+        "r5rk/pb3p2/2p2P2/3p1Rb1/4p2N/2P5/PP2B2P/1K4R1 b - - 4 32",
+        "r7/1BB3p1/5n2/R4p2/5P1k/P7/2b2K2/8 b - - 4 45",
+        "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
+        "1r3qk1/1N5p/1r1ppnp1/1Pp5/P2bPP2/6PP/2Q3BK/1RR1B3 b - - 0 30",
+        "K7/7p/8/7P/1P3k2/4p1p1/2R5/8 w - - 1 49",
+        "8/5Rpk/7p/3R4/8/1r2KP2/6r1/8 w - - 4 57",
+        "rn1qkbnr/pb1ppppp/1p6/2p5/2P5/5NP1/PP1PPP1P/RNBQKB1R w KQkq - 1 4",
+        "4k3/p6R/r3p3/4N2b/3P4/8/1P3P2/6K1 b - - 0 40",
+        "r2r2k1/ppqbbppp/1n2p3/3PP3/3p1B1P/1P1P2P1/P3QPB1/RN2R1K1 b - - 0 15",
+        "3QQ3/p5kp/1p3p2/2p3n1/P4q2/1P6/5K2/3R4 w - - 1 56",
+        "r2q1rk1/p2nbppp/bpp1pn2/3pP3/2PP4/P1N2NP1/1PQ2PBP/R1B2RK1 b - - 0 11",
+        "rnbqkb1r/pppppp1p/5np1/8/3P1B2/5N2/PPP1PPPP/RN1QKB1R b KQkq - 1 3",
+        "r2br1k1/3b1p1p/p2p2p1/1pqP3n/8/2PQNR2/PPBB2PP/R6K b - - 3 22",
+        "r1b1k1nr/ppp2ppp/2n5/3qp3/3P4/P1P1P3/5PPP/R1BQKBNR b KQkq - 0 7",
+        "5rr1/p1pk3p/PpNn2n1/5p2/3P1P2/5K1B/8/2R1R3 w - - 3 39",
+        "r4rk1/pbp1q1p1/1p1p3p/4p3/1PPPp1nP/P3P2N/1BQ2PP1/R3KR2 w Q - 0 18"
+    };
     
+    #pragma omp parallel for
+    for (int i = 0; i < fens.size(); i++) {
+        std::string s0 = fens.at(i);
+        // auto position = Position(s0);
+        // for (int j=0;j<sims;j++)  {
+        //     vector<Move> legal = MoveGen<ALL_LEGAL>(position).moves;
+        // }
+        auto mcts = MCTS(s0, sims, sqrt(2), 1.0, 0.0, 0.0);
+        Move move = mcts.search();
+    }
+    
+
+    // std::cout << move << std::endl;
+    // for (const auto& m : mcts.pv(s0)) {
+    //     std::cout << m << " ";
+    // }
+    // std::cout << std::endl;
+    
+    std::chrono::time_point<std::chrono::steady_clock> end = std::chrono::steady_clock::now();
     std::chrono::duration<double> diff = end - start;
     std::cout << "secs: " << diff.count() << std::endl;
     
