@@ -22,6 +22,14 @@
 #include "mcts.h"
 #include <omp.h>
 
+// void test(Position pos) {
+//     std::cout << &pos << std::endl;
+//     std::cout << pos << std::endl;
+//     std::cout << pos.fen() << std::endl;
+//     std::cout << pos.piece_on(G2) << std::endl;
+//     std::cout << pos.moves;
+// }
+
 int main(int argc, char* argv[])
 {
     Bitboards::init();
@@ -35,6 +43,7 @@ int main(int argc, char* argv[])
     std::chrono::time_point<std::chrono::steady_clock> start = std::chrono::steady_clock::now();
     
     std::vector<string> fens {
+        // "5R1k/6p1/7p/8/8/1r1RKP2/6r1/8 b - - 7 58",
         "r5rk/pb3p2/2p2P2/3p1Rb1/4p2N/2P5/PP2B2P/1K4R1 b - - 4 32",
         "r7/1BB3p1/5n2/R4p2/5P1k/P7/2b2K2/8 b - - 4 45",
         "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
@@ -53,17 +62,69 @@ int main(int argc, char* argv[])
         "r4rk1/pbp1q1p1/1p1p3p/4p3/1PPPp1nP/P3P2N/1BQ2PP1/R3KR2 w Q - 0 18"
     };
     
+    // cout << "Root fen:\n";
+    // cout << Position(fens[0]);
+    
     #pragma omp parallel for
     for (int i = 0; i < fens.size(); i++) {
         std::string s0 = fens.at(i);
-        // auto position = Position(s0);
+        auto position = Position(s0);
         // for (int j=0;j<sims;j++)  {
         //     vector<Move> legal = MoveGen<ALL_LEGAL>(position).moves;
         // }
+
+        // cout << "Root fen:\n";
+        // cout << Position(s0);
+        
+        // auto moves = MoveGen<ALL_LEGAL>(position).moves;
+        // for (auto m : moves) {
+        //     cout << m;
+        // }
+        
         auto mcts = MCTS(s0, sims, sqrt(2), 1.0, 0.0, 0.0);
-        Move move = mcts.search();
+        MCTSNode* node = mcts.search();
+        
+        Move a = node->move;
+        cout << a << endl;
+        // vector<Move> moves = mcts.pv();
+        
+        // std::cout << "moves len " << moves.size() << endl;
+        
+        // for (auto move : moves) {
+        //     Square from = from_sq(move);
+        //     Square to = to_sq(move);
+        //     std::cout << move << std::endl;
+        // }
     }
+
     
+    
+    // std::string s0 = fens.at(5);
+    // Position pos = Position(s0);
+    
+    // std::cout << &pos << std::endl;
+    // std::cout << pos << std::endl;
+    // std::cout << pos.fen() << std::endl;
+    // std::cout << pos.piece_on(G2) << std::endl;
+    
+    // test(pos);
+    
+    // Position pos2 = pos;
+    // std::cout << pos2.fen() << std::endl;
+    
+    // maksle@makstop:~/share/slonikai$ ./mainmp 500
+    //     secs: 4.69406
+    //     maksle@makstop:~/share/slonikai$ ./mainmp 1000
+    //     secs: 10.3642
+    //     maksle@makstop:~/share/slonikai$ ./mainmp 2000
+    //     secs: 20.9309
+
+    // maksle@makstop:~/share/slonikai$ ./main 500
+    //     secs: 7.55949
+    //     maksle@makstop:~/share/slonikai$ ./main 1000
+    //     secs: 15.892
+    //     maksle@makstop:~/share/slonikai$ ./main 2000
+    //     secs: 32.3036
 
     // std::cout << move << std::endl;
     // for (const auto& m : mcts.pv(s0)) {
@@ -74,7 +135,7 @@ int main(int argc, char* argv[])
     std::chrono::time_point<std::chrono::steady_clock> end = std::chrono::steady_clock::now();
     std::chrono::duration<double> diff = end - start;
     std::cout << "secs: " << diff.count() << std::endl;
-    
+
     // TD::initialize();
 
     // SlonikNet net;

@@ -14,16 +14,66 @@ using namespace std;
 
 class Position;
 
-const int NO_EVAL = 10;
+const int NO_EVAL = 10000;
 
-struct MCTSNode {
-  // Nodes
+class MCTSNode {
+ public:
+  /* vector<MCTSNode*> children; */
+  MCTSNode* parent = nullptr;
+  MCTSNode* first_child = nullptr;
+  MCTSNode* sibling = nullptr;
+  MCTSNode* prev_sibling = nullptr;
+
+  bool expanded = false;
+  Move move; 
+  string repr;
+
   int N = 0;
-  float Vnn = 0;
-  // Edges
   int Q = 0;
+
+  float Vnn = 0;
   float Pnn = 0;
+
+  void add_child(MCTSNode* node) {
+    node->sibling = this->first_child;
+    if (this->first_child)
+      this->first_child->prev_sibling = node;
+    this->first_child = node;
+  }
+
+  ~MCTSNode() {
+    if (parent && parent->first_child == this)
+      parent->first_child = sibling;
+    if (prev_sibling && sibling)
+        prev_sibling->sibling = sibling;
+    if (first_child)
+      delete first_child;
+  }
+  
+  class Iterator
+  {
+  public:
+  Iterator(MCTSNode* begin) :
+    iter(begin) {}
+    MCTSNode* next() {
+      iter = iter->sibling;
+      return iter;
+    }
+    bool end() {
+      if (iter == nullptr)
+        return true;
+      /* if (iter->sibling == nullptr) */
+      /*   return true; */
+      return false;
+      /* return (!iter || !iter->sibling); */
+    }
+  private:
+    MCTSNode* iter;
+  };
+  
 };
+
+std::ostream& operator<<(std::ostream& os, vector<MCTSNode*> path);
 
 class RandomSelector
 {
@@ -50,12 +100,13 @@ typedef std::function<PositionEvaluation(const Position&)> MCTSEvaluator;
 class MCTS {
  private:
   string s0;
+  MCTSNode root_node;
   float c;
   float w_r;
   float w_a;
   float w_v;
   MCTSEvaluator evaluator;
-  unordered_map<string, MCTSNode> tree;
+  /* unordered_map<string, MCTSNode> tree; */
   int simulations;
   int max_simulations;
   RandomSelector random_choice;
@@ -64,23 +115,24 @@ class MCTS {
 
   MCTS(string s0, int max_simulations=800,
        float c=1.1414, float w_r=0.5, float w_v=0.75, float w_a=-1.0f);
-
-  Move search();
+  
+  MCTSNode* search();
   bool time_available();
-  void simulate(Position position);
-  vector<tuple<string, Move> > sim_tree(Position& position);
+  void simulate(MCTSNode&, Position&);
+  vector<MCTSNode*> sim_tree(MCTSNode* node, Position& position);
   Move default_policy(const Position& position);
-  float sim_default(Position position);
-  void new_node(string s);
-  float uct_value(string s, Move a, float c, float w_a, float w_v) const;
-  float lookup_Q(string s, Move a) const;
-  vector<Move> pv(string s0) const;
-  Move select_move(const Position& position, float c) const;
-  void backup(const vector<tuple<string, Move> >& states_actions, float z);
+  float sim_default(Position& position);
+  /* void new_node(string s); */
+  void expand_node(MCTSNode* parent, const Position& position);
+  /* float lookup_Q(string s, Move a) const; */
+  vector<Move> pv();
+  MCTSNode* select_move(MCTSNode* node, const Position& position, float c) const;
+  MCTSNode* recover_move(MCTSNode* node, const Position& position) const;
+  void backup(vector<MCTSNode*>& path, float z);
   vector<Move> get_actions(string s) const;
   vector<Move> get_actions(const Position& position) const;
   string get_state(const Position& position) const;
-  string edge_key(string s, Move a) const;
+  /* string edge_key(string s, Move a) const; */
 };
 
 #endif
