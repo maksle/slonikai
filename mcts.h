@@ -2,7 +2,7 @@
 #define MCTS_H_GUARD
 
 #include <vector>
-#include <unordered_map>
+#include <unordered_set>
 #include <string>
 #include <functional>
 #include <cmath> // sqrt, log
@@ -30,6 +30,9 @@ class MCTSNode {
 
   int N = 0;
   int Q = 0;
+
+  int N_RAVE = 0;
+  int Q_RAVE = 0;
 
   float Vnn = 0;
   float Pnn = 0;

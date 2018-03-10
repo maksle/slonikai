@@ -319,6 +319,16 @@ MCTSNode* MCTS::select_move(MCTSNode* node, const Position& position, float c) c
 
 void MCTS::backup(vector<MCTSNode*>& path, float z)
 {
+
+   // unordered_set<Move> played(path.begin(), path.end());
+   // unoredred_set<MCTSNode*> played_nodes(path.begin(), path.end());
+   unordered_set<int> played_moves;
+   for (vector<MCTSNode*>::iterator it = path.begin(); it != path.end(); ++it)
+   {
+	  MCTSNode* node = *it;
+	  played_moves.insert(int(node->move));
+   }
+   
    // cout << z;
    for (vector<MCTSNode*>::iterator it = path.begin(); it != path.end(); ++it)
    {
@@ -326,6 +336,19 @@ void MCTS::backup(vector<MCTSNode*>& path, float z)
 	  node->N++;
 	  float v = z;
 	  node->Q += (v - node->Q) / node->N;
+
+	  MCTSNode* child = node->first_child;
+	  MCTSNode::Iterator iter(child);
+	  for (; !iter.end(); child = iter.next())
+	  {
+	  	  Move a = child->move;
+		  if (played_moves.find(a) != played_moves.end()) {
+			 child->N_RAVE++;
+			 child->Q_RAVE += (v - child->Q_RAVE) / node->N_RAVE;
+		  }
+	  }
+	  
+	  played_moves.erase(int(node->move));
    }
 }
 
