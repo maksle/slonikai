@@ -37,8 +37,35 @@ int main(int argc, char* argv[])
     Zobrist::init();
     TT.resize(256);
 
+    // string tfen = "2r4q/rp1b3p/k5p1/p1P3n1/P1B4R/1p1nP3/7K/8 b - -";
+    // Position tposition(tfen);
+    // std::cout << tfen << endl;
+    // std::cout << tposition << endl;
+
+    // tposition.make_move(make_move(B7,B5));
+    // tposition.make_move(make_move<ENPESSANT>(C5,B6));
+    // std::cout << tposition << std::endl;
+    // std::cout << Bitboards::print_bb(tposition.checkers());
+    // vector<Move> legal = MoveGen<ALL_LEGAL>(tposition).moves;
+    // for (auto m : legal)
+    //     std::cout << m << " ";
+    // std::cout << std::endl;
+
+    // return 0;
+    
     string sims_ = argv[1];
     int sims = stoi(sims_);
+    
+    // std::string fen = "rb6/3kp3/b5pP/p3p3/1Pp5/P1p5/4NPP1/R3KB1n w Q - 0 1";
+    // auto pos = Position(fen);
+    // std::cout << "gives check: " << pos.gives_check(make_move(E1,C1)) << "\n";
+    // pos.make_move(make_move<CASTLING>(E1,C1));
+    // std::cout << pos;
+    // std::cout << Bitboards::print_bb(pos.checkers());
+
+    // vector<Move> legal = MoveGen<ALL_LEGAL>(pos).moves;
+    // for (auto m : legal)
+    //     std::cout << m << " ";
     
     std::chrono::time_point<std::chrono::steady_clock> start = std::chrono::steady_clock::now();
     
@@ -67,6 +94,7 @@ int main(int argc, char* argv[])
     
     #pragma omp parallel for
     for (int i = 0; i < fens.size(); i++) {
+        continue;
         std::string s0 = fens.at(i);
         auto position = Position(s0);
         // for (int j=0;j<sims;j++)  {
@@ -80,24 +108,51 @@ int main(int argc, char* argv[])
         // for (auto m : moves) {
         //     cout << m;
         // }
-        
-        auto mcts = MCTS(s0, sims, sqrt(2), 1.0, 0.0, 0.0);
+
+        // cout << "DEFAULT" << endl;
+        auto mcts = MCTS(s0, sims, sqrt(2), 1.0, 0.0, 0.0, true);
         MCTSNode* node = mcts.search();
-        
-        Move a = node->move;
-        cout << a << endl;
-        // vector<Move> moves = mcts.pv();
-        
-        // std::cout << "moves len " << moves.size() << endl;
-        
+        vector<Move> moves = mcts.pv();
         // for (auto move : moves) {
-        //     Square from = from_sq(move);
-        //     Square to = to_sq(move);
+        //     std::cout << move << std::endl;
+        // }
+
+        // cout << "RAVE" << endl;
+        // mcts = MCTS(s0, sims, sqrt(2), 1.0, 0.0, 0.0, true);
+        // node = mcts.search();
+        // moves = mcts.pv();
+        // for (auto move : moves) {
         //     std::cout << move << std::endl;
         // }
     }
 
+    Position position;
+    string fen = position.fen();
     
+    int white_win = 0;
+    int draw = 0;
+    int rave_win = 0;
+    int rave_draw = 0;
+        
+    for (int i = 0; i < 15; ++i) {
+        for (int j = 0; j <= 1; ++j) {
+            float result = playMCTS(fen, 1000, bool(j));
+            if (result == 1)
+                white_win++;
+
+            if (result == 1 && j == 1)
+                rave_win++;
+            else if (result == -1 && j == 0)
+                rave_win++;
+            else
+                rave_draw++;
+
+            std::cout << 2 * i + j << std::endl;
+        }
+    }
+
+    std::cout << "White wins " << white_win << endl;
+    std::cout << "Rave wins " << rave_win << endl;
     
     // std::string s0 = fens.at(5);
     // Position pos = Position(s0);
@@ -244,11 +299,13 @@ int main(int argc, char* argv[])
     // std::cout << "int: " << sizeof(int) << std::endl;
     // std::cout << "short int: " << sizeof(short int) << std::endl;
     // std::cout << "TTEntry: " << sizeof(TTEntry) << std::endl;
-    
-    // int depth = 5;
-    // Position pos = Position("r4rk1/1pp1qppp/p1np1n2/2b1p1B1/2B1P1b1/P1NP1N2/1PP1QPPP/R4RK1 w - - 0 10");
-    // Position pos = Position("8/2p5/3p4/KP5r/1R3p1k/8/4P1P1/8 w - - 0 0");
-    // Position pos;
+
+    // // PERFT
+    // std::cout << argv[1] << "\n";
+    // std::cout << argv[2] << "\n";
+    // string fen = argv[1];
+    // int depth = stoi(argv[2]);
+    // Position pos(fen);
     // std::chrono::time_point<std::chrono::steady_clock> start = std::chrono::steady_clock::now();
     // int nodes = Search::perft<true>(pos, depth);
     // std::chrono::time_point<std::chrono::steady_clock> end = std::chrono::steady_clock::now();

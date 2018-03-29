@@ -208,10 +208,16 @@ inline Square to_sq(Move m) {
 inline std::ostream& operator<<(std::ostream& os, const Move& move) {
   Square from = from_sq(move);
   Square to = to_sq(move);
+  if (type_of(move) == CASTLING) {
+    if (to == G8 || to == G1)
+      return os << "00";
+    return os << "000";
+  }
   return os << char(file_of(from) + 'a')
             << char(rank_of(from) + '1')
             << char(file_of(to) + 'a')
             << char(rank_of(to) + '1');
 }
+
 
 #endif

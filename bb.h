@@ -3,6 +3,7 @@
 
 #include <string>
 #include "types.h"
+#include <stdexcept>
 
 namespace Bitboards {
   void init();
@@ -34,6 +35,8 @@ extern const Bitboard G_FILE;
 extern const Bitboard H_FILE;
 
 inline Square lsb(Bitboard b) {
+  /* if (!b) */
+  /*   throw std::logic_error("lsb of 0"); */
   assert(b);
   return Square(__builtin_ctzll(b));
 }

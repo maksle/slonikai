@@ -114,10 +114,12 @@ class MCTS {
   int max_simulations;
   RandomSelector random_choice;
 
+  bool rave;
+
  public:
 
   MCTS(string s0, int max_simulations=800,
-       float c=1.1414, float w_r=0.5, float w_v=0.75, float w_a=-1.0f);
+       float c=1.1414, float w_r=0.5, float w_v=0.75, float w_a=-1.0f, bool rave=false);
   
   MCTSNode* search();
   bool time_available();
@@ -137,5 +139,7 @@ class MCTS {
   string get_state(const Position& position) const;
   /* string edge_key(string s, Move a) const; */
 };
+
+int playMCTS(string fen, int sims, bool white_rave);
 
 #endif

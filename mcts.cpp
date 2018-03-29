@@ -2,7 +2,42 @@
 #include "mcts.h"
 #include "position.h"
 #include "bb.h"
+#include <omp.h>
+#include <mutex>
 
+
+enum SyncCout { IO_LOCK, IO_UNLOCK };
+std::ostream& operator<<(std::ostream&, SyncCout);
+
+#define sync_cout std::cout << IO_LOCK
+#define sync_endl std::endl << IO_UNLOCK
+
+std::ostream& operator<<(std::ostream& os, SyncCout sc) {
+
+   static std::mutex m;
+
+   if (sc == IO_LOCK)
+      m.lock();
+
+   if (sc == IO_UNLOCK)
+      m.unlock();
+
+   return os;
+}
+
+class AtomicWriter {
+   std::ostringstream st;
+public:
+   template<class T>
+   AtomicWriter& operator<<(const T& t) {
+	  st << t;
+	  return *this;
+   }
+   ~AtomicWriter() {
+	  std::string str = st.str();
+	  std::cout << str;
+   }
+};
 
 enum GameTerminationReason {
    NONE, NO_MOVES, INSUFFICIENT_MATERIAL, NO_PROGRESS
@@ -53,8 +88,8 @@ bool game_over(const Position& position, GameTerminationReason& reason) {
    return false;
 }
 
-MCTS::MCTS(string s0, int max_simulations, float c, float w_r, float w_v, float w_a)
-   : s0(s0), max_simulations(max_simulations), c(c), w_r(w_r), w_v(w_v), w_a(w_a), simulations(0)
+MCTS::MCTS(string s0, int max_simulations, float c, float w_r, float w_v, float w_a, bool b_rave)
+   : s0(s0), max_simulations(max_simulations), c(c), w_r(w_r), w_v(w_v), w_a(w_a), simulations(0), rave(b_rave)
 {
    if (w_a < 0)
 	  w_a = max_simulations / 35.0f;
@@ -92,6 +127,10 @@ void MCTS::simulate(MCTSNode& node, Position& position) {
 }
 
 vector<MCTSNode*> MCTS::sim_tree(MCTSNode* node, Position& position) {
+   // AtomicWriter wcout;
+   //// int tid = omp_get_thread_num();
+   // wcout << "SIM_TREE++++++++++++++++ (" << ")";
+   // wcout << position<< "\n";
    vector<MCTSNode*> path { node };
 
    MCTSNode* curr_node = node;
@@ -104,7 +143,9 @@ vector<MCTSNode*> MCTS::sim_tree(MCTSNode* node, Position& position) {
       }
       curr_node = select_move(curr_node, position, this->c);
       path.push_back(curr_node);
+	  // wcout << curr_node->move<< "\n";
       position.make_move(curr_node->move);
+	  // wcout << position<< "\n";
    }
    return path;
 }
@@ -116,11 +157,18 @@ Move MCTS::default_policy(const Position& position) {
 }
 
 float MCTS::sim_default(Position& position) {
+   // AtomicWriter wcout;
+   // int tid = omp_get_thread_num();
+   // wcout << "SIM_DEFAULT++++++++++++++++ (" << ")";
+   // wcout << position<< "\n";
    GameTerminationReason reason;
    while (!game_over(position, reason))
    {
 	  Move a = default_policy(position);
+	  // wcout << a<< "\n";
+	  // wcout << "(" << tid << ")\n" << a << "\n" << position << "\n";
 	  position.make_move(a);
+	  // wcout << position << "\n";
    }
 
    float result = 0.0;
@@ -293,7 +341,12 @@ MCTSNode* MCTS::select_move(MCTSNode* node, const Position& position, float c) c
 	  //     value_prior_bonus = w_v * s_prime_node.Vnn;
 
 	  float exploration = uct + policy_prior_bonus;
-	  float value = child->Q + value_prior_bonus;
+
+	  float w_rave = 0;
+	  if (rave) {
+		 w_rave = 0.5;
+	  }
+	  float value = ((1 - w_rave) * child->Q + w_rave * child->Q_RAVE) + value_prior_bonus;
 	  
 	  // cout << child << " Q " << child->Q << ", UCT " << uct << endl;
 	  
@@ -301,6 +354,8 @@ MCTSNode* MCTS::select_move(MCTSNode* node, const Position& position, float c) c
 		 value = -value;
 
 	  float score = value + exploration;
+	  
+	  // cout << child->Q << " " << child->Q_RAVE << " " << exploration << endl;
 
 	  // cout << value << " " << exploration << "\n";
 	  
@@ -319,9 +374,6 @@ MCTSNode* MCTS::select_move(MCTSNode* node, const Position& position, float c) c
 
 void MCTS::backup(vector<MCTSNode*>& path, float z)
 {
-
-   // unordered_set<Move> played(path.begin(), path.end());
-   // unoredred_set<MCTSNode*> played_nodes(path.begin(), path.end());
    unordered_set<int> played_moves;
    for (vector<MCTSNode*>::iterator it = path.begin(); it != path.end(); ++it)
    {
@@ -337,15 +389,17 @@ void MCTS::backup(vector<MCTSNode*>& path, float z)
 	  float v = z;
 	  node->Q += (v - node->Q) / node->N;
 
-	  MCTSNode* child = node->first_child;
-	  MCTSNode::Iterator iter(child);
-	  for (; !iter.end(); child = iter.next())
-	  {
-	  	  Move a = child->move;
-		  if (played_moves.find(a) != played_moves.end()) {
-			 child->N_RAVE++;
-			 child->Q_RAVE += (v - child->Q_RAVE) / node->N_RAVE;
-		  }
+	  if (rave) {
+		 MCTSNode* child = node->first_child;
+		 MCTSNode::Iterator iter(child);
+		 for (; !iter.end(); child = iter.next())
+		 {
+			Move a = child->move;
+			if (played_moves.find(a) != played_moves.end()) {
+			   child->N_RAVE++;
+			   child->Q_RAVE += (v - child->Q_RAVE) / child->N_RAVE;
+			}
+		 }
 	  }
 	  
 	  played_moves.erase(int(node->move));
@@ -362,4 +416,31 @@ vector<Move> MCTS::get_actions(string s) const {
 
 string MCTS::get_state(const Position& position) const {
    return position.fen();
+}
+
+int playMCTS(string fen, int sims, bool white_rave) {
+   Position position(fen);
+
+   bool curr_move_rave = white_rave;
+   GameTerminationReason reason;
+   while (!game_over(position, reason)) {
+	  auto mcts = MCTS(position.fen(), sims, sqrt(2), 1.0, 0.0, 0.0, curr_move_rave);
+	  MCTSNode* node = mcts.search();
+	  Move a = node->move;
+	  position.make_move(a);
+	  curr_move_rave = !curr_move_rave;
+   }
+
+   int result = 0;
+   Side stm = position.side_to_move();
+   if (reason == NO_MOVES && position.checkers())
+	  if (stm == BLACK) // black is checkmated
+		 result = 1;
+	  else
+		 result -1;
+
+   cout << position;
+   cout << position.moves;
+
+   return result;
 }

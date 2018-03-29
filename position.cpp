@@ -76,8 +76,23 @@ void Position::set_check_info() {
     Bitboard sliders = (pseudo_attacks(BISHOP, ksq) & pieces(us, BISHOP, QUEEN))
         | (pseudo_attacks(ROOK, ksq) & pieces(us, ROOK, QUEEN));
     discoverers_and_pinned(sliders, ksq, discoverersBB[them], pinnedBB[them]);
-    
+ 
+    if (!pieces(us, KING)) {
+        // int tid = omp_get_thread_num();
+        std::cout
+            // << "(" << tid << ")\n"
+            << "\n" << *this << std::endl;
+        for (auto m : moves)
+            std::cout << m << " ";
+        for (std::vector<Move>::const_reverse_iterator it = moves.rbegin(); it != moves.rend(); it += 1) {
+            std::cout << "undoing " << *it << "\n";
+            unmake_move();
+            std::cout << *this;
+        }
+        ksq = lsb((Bitboard)0);
+    }
     ksq = lsb(pieces(us, KING));
+
     // std::cout << char(file_of(ksq) + 'a') << char(rank_of(ksq) + '1') << std::endl;
     sliders = (pseudo_attacks(BISHOP, ksq) & pieces(them, BISHOP, QUEEN))
         | (pseudo_attacks(ROOK, ksq) & pieces(them, ROOK, QUEEN));
@@ -447,12 +462,10 @@ bool Position::gives_check(Move m) const {
     
     // discovered check
     if ((discoverers(them) & from) && !(between_sqs(kthem, from) & to)) {
-        // if (from == E3 and to == F4) {
-        // }
         return true;
     }
         
-    Bitboard occ;
+    Bitboard occ, rook;
     
     switch (type_of(m)) {
     case NORMAL:
@@ -464,20 +477,24 @@ bool Position::gives_check(Move m) const {
     case ENPESSANT:
         // can only be check by a slider due to clearance of the taken pawn
         occ = (pieces() ^ shift_south(SquareBB[to], get_side(pt)) ^ from) | to;
-        return (bishop_attack(kthem, occ) | rook_attack(kthem, occ)) & pieces(us, ROOK, QUEEN);
+        return (bishop_attack(kthem, occ) | rook_attack(kthem, occ)) & (pieces(us, ROOK, BISHOP) | pieces(us, QUEEN));
 
     case CASTLING:
         occ = pieces() ^ from ^ to;
         if (us == WHITE && to == G1) {
             occ ^= SquareBB[H1] ^ SquareBB[F1];
+            rook = SquareBB[F1];
         } else if (us == WHITE && to == C1) {
             occ ^= SquareBB[A1] ^ SquareBB[D1];
+            rook = SquareBB[D1];
         } else if (us == BLACK && to == G8) {
             occ ^= SquareBB[H8] ^ SquareBB[F8];
+            rook = SquareBB[F8];
         } else if (us == BLACK && to == G8) {
             occ ^= SquareBB[A8] ^ SquareBB[D8];
+            rook = SquareBB[D8];
         }
-        return rook_attack(kthem, occ) & pieces(us, ROOK);
+        return rook_attack(kthem, occ) & rook;
     default:
         assert(false);
         return false;
@@ -592,7 +609,7 @@ Position& Position::set(const std::string& fen) {
     
     init_zobrist(ps);
     
-    return*this;
+    return *this;
 }
 
 const std::string Position::fen() const {
