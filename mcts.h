@@ -131,7 +131,7 @@ class MCTS {
   void expand_node(MCTSNode* parent, const Position& position);
   /* float lookup_Q(string s, Move a) const; */
   vector<Move> pv();
-  MCTSNode* select_move(MCTSNode* node, const Position& position, float c) const;
+  MCTSNode* select_move(MCTSNode* node, const Position& position, float c);
   MCTSNode* recover_move(MCTSNode* node, const Position& position) const;
   void backup(vector<MCTSNode*>& path, float z);
   vector<Move> get_actions(string s) const;

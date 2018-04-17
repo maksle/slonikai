@@ -37,16 +37,20 @@ int main(int argc, char* argv[])
     Zobrist::init();
     TT.resize(256);
 
-    // string tfen = "2r4q/rp1b3p/k5p1/p1P3n1/P1B4R/1p1nP3/7K/8 b - -";
+    // string tfen = "r3kb1r/Q3pp1p/n1p5/1B2n1p1/1P1KP2q/N1P4b/P2P1PPR/R1B3N1 b q - 0 1";
     // Position tposition(tfen);
     // std::cout << tfen << endl;
     // std::cout << tposition << endl;
-
-    // tposition.make_move(make_move(B7,B5));
-    // tposition.make_move(make_move<ENPESSANT>(C5,B6));
+    // vector<Move> legal = MoveGen<ALL_LEGAL>(tposition).moves;
+    // for (auto m : legal)
+    //     std::cout << m << " ";
+    // std::cout << std::endl;
+    
+    // tposition.make_move(make_move<CASTLING>(E8,C8));
     // std::cout << tposition << std::endl;
     // std::cout << Bitboards::print_bb(tposition.checkers());
-    // vector<Move> legal = MoveGen<ALL_LEGAL>(tposition).moves;
+    // // vector<Move> 
+    //     legal = MoveGen<ALL_LEGAL>(tposition).moves;
     // for (auto m : legal)
     //     std::cout << m << " ";
     // std::cout << std::endl;
@@ -55,6 +59,9 @@ int main(int argc, char* argv[])
     
     string sims_ = argv[1];
     int sims = stoi(sims_);
+
+    string gs_ = argv[2];
+    int gs = stoi(gs_);
     
     // std::string fen = "rb6/3kp3/b5pP/p3p3/1Pp5/P1p5/4NPP1/R3KB1n w Q - 0 1";
     // auto pos = Position(fen);
@@ -133,26 +140,44 @@ int main(int argc, char* argv[])
     int draw = 0;
     int rave_win = 0;
     int rave_draw = 0;
+    int rave_loss = 0;
         
-    for (int i = 0; i < 15; ++i) {
+    for (int i = 0; i < gs; ++i) {
         for (int j = 0; j <= 1; ++j) {
-            float result = playMCTS(fen, 1000, bool(j));
-            if (result == 1)
+            std::cout << "game " << 2 * i + j << std::endl;
+            std::cout << "White rave: " << j << std::endl;
+            float result = playMCTS(fen, sims, bool(j));
+            if (result == 1) {
                 white_win++;
-
-            if (result == 1 && j == 1)
+                std::cout << "1-0" << std::endl;
+            }
+            else if (result == 0) {
+                draw++;
+                std::cout << "1/2-1/2" << std::endl;
+            } else {
+                std::cout << "0-1" << std::endl;
+            }
+            if (result == 1 && j == 1) {
                 rave_win++;
-            else if (result == -1 && j == 0)
+                std::cout << "White rave wins" << std::endl;
+            }
+            else if (result == -1 && j == 0) {
                 rave_win++;
-            else
+                std::cout << "Black rave wins" << std::endl;
+            }
+            else if (result == 0) {
                 rave_draw++;
-
-            std::cout << 2 * i + j << std::endl;
+            } else {
+                rave_loss++;
+            }
         }
     }
 
     std::cout << "White wins " << white_win << endl;
+    std::cout << "draws " << draw << endl;
     std::cout << "Rave wins " << rave_win << endl;
+    std::cout << "Rave draws " << rave_draw << endl;
+    std::cout << "Rave loss " << rave_loss << endl;
     
     // std::string s0 = fens.at(5);
     // Position pos = Position(s0);

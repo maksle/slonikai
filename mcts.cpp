@@ -104,6 +104,7 @@ MCTSNode* MCTS::search() {
 	  simulate(root_node, root_position);
    }
    Position root_position = Position(s0);
+   // cout << "Q " << root_node.Q << " Qr " << root_node.Q_RAVE << " N " << root_node.N << endl;
    return recover_move(&root_node, root_position);
 }
 
@@ -177,8 +178,12 @@ float MCTS::sim_default(Position& position) {
 	  if (stm == BLACK) // black is checkmated
 		 result = 1.0;
 	  else
-		 result -1.0;
+		 result = -1.0;
 
+   // if (reason == NO_PROGRESS) {
+   // 	  position.pieces()
+   // }
+   
    return result;
 }
 
@@ -276,32 +281,50 @@ vector<Move> MCTS::pv() {
 
 MCTSNode* MCTS::recover_move(MCTSNode* node, const Position& position) const {
    Side stm = position.side_to_move();
-   float best_val = NO_EVAL;
+   // float best_val = NO_EVAL;
+   int maxn = 0;
    MCTSNode* best_node;
+   
+   vector<MCTSNode*> children;
    
    MCTSNode* child = node->first_child;
    MCTSNode::Iterator iter(child);
    for (; !iter.end(); child = iter.next())
    {
-	  Move a = child->move;
-	  float score = child->Q;
+	  children.push_back(child);
+	  // Move a = child->move;
+	  // float score = child->Q;
+	  // int n = child->N;
 
-	  if (stm == BLACK)
-		 score = -score;
+	  // if (stm == BLACK)
+	  // 	 score = -score;
 	  
-	  if (best_val == NO_EVAL || score > best_val)
-	  {
-		 best_val = score;
-		 best_node = child;
-	  }
+	  // if (best_val == NO_EVAL || score > best_val)
+	  // if (n > maxn)
+	  // {
+		 // best_val = score;
+		 // best_node = child;
+	  // }
    }
-   return best_node;
+
+   vector<int> Ns;
+   for (auto c : children)
+	  Ns.push_back(pow(c->N, 1.0/0.8));
+
+   random_device rd;
+   mt19937 gen(rd());
+   discrete_distribution<> d(Ns.begin(), Ns.end());
+   
+   int ind = d(gen);
+   
+   return children.at(ind);
+   // return best_node;
 }
 
-MCTSNode* MCTS::select_move(MCTSNode* node, const Position& position, float c) const {
+MCTSNode* MCTS::select_move(MCTSNode* node, const Position& position, float c) {
    Side stm = position.side_to_move();
    float best_val = NO_EVAL;
-   MCTSNode* best_node;
+   vector<MCTSNode*> best_nodes;
 
    // string smoves = str_moves(position.moves);
    // if (smoves == "d5d3 h7h8 f7f8 ") {
@@ -327,10 +350,10 @@ MCTSNode* MCTS::select_move(MCTSNode* node, const Position& position, float c) c
 	  Move a = child->move;
 	  // cout << a << " ";
 
-	  float uct = 1000;
-	  if (child->N > 0) {
-		 uct = this->c * sqrt(log(node->N) / child->N);
-	  }
+	  // float uct = 1000;
+	  // if (child->N > 0) {
+	  float uct = this->c * sqrt(log(node->N) / (child->N + 1));
+	  // }
    
 	  float policy_prior_bonus = 0;
 	  if (this->w_a)
@@ -359,17 +382,24 @@ MCTSNode* MCTS::select_move(MCTSNode* node, const Position& position, float c) c
 
 	  // cout << value << " " << exploration << "\n";
 	  
-	  if (best_val == NO_EVAL || score > best_val)
+	  if (best_val == NO_EVAL || score >= best_val)
 	  {
-		 best_val = score;
-		 best_node = child;
+		 if (score == best_val) {
+			best_nodes.push_back(child);
+		 } else {
+			best_val = score;
+			best_nodes.clear();
+			best_nodes.push_back(child);
+		 }
 	  }
    }
 
+   return *(random_choice.select<>(best_nodes));
+   
    // assert(position.is_legal(best_node->move));
    
    // cout << "\nChose node " << best_node << " " << best_node->move << "\n";
-   return best_node;
+   // return best_node;
 }
 
 void MCTS::backup(vector<MCTSNode*>& path, float z)
@@ -420,7 +450,7 @@ string MCTS::get_state(const Position& position) const {
 
 int playMCTS(string fen, int sims, bool white_rave) {
    Position position(fen);
-
+   
    bool curr_move_rave = white_rave;
    GameTerminationReason reason;
    while (!game_over(position, reason)) {
@@ -437,9 +467,10 @@ int playMCTS(string fen, int sims, bool white_rave) {
 	  if (stm == BLACK) // black is checkmated
 		 result = 1;
 	  else
-		 result -1;
-
+		 result = -1;
+   
    cout << position;
+   cout << position.key() << endl;
    cout << position.moves;
 
    return result;

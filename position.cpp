@@ -490,7 +490,7 @@ bool Position::gives_check(Move m) const {
         } else if (us == BLACK && to == G8) {
             occ ^= SquareBB[H8] ^ SquareBB[F8];
             rook = SquareBB[F8];
-        } else if (us == BLACK && to == G8) {
+        } else if (us == BLACK && to == C8) {
             occ ^= SquareBB[A8] ^ SquareBB[D8];
             rook = SquareBB[D8];
         }
@@ -679,7 +679,7 @@ bool Position::arbiter_draw() const {
          it + 1 != states.rend() && it + 2 != states.rend();
          it += 2)
     {
-        if ((it + 2)->zkey == ps.zkey)
+        if ((it + 2)->zkey == ps.zkey) 
             return true;
     }
 
