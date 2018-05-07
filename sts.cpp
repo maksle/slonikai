@@ -96,10 +96,11 @@ int run_sts_test()
         assert(false);
     }
     
+    // SlonikNet net;
     SlonikNet net;
     Evaluator evaluator = [&net](const Position& pos) {
-        float score = net.evaluate(pos);
-        // float score = .5;
+        // float score = net.evaluate(pos);
+        float score = .5;
         score *= 10000;
         return Score(score * (pos.side_to_move() == WHITE ? 1 : -1));
     };

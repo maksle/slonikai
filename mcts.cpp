@@ -2,6 +2,7 @@
 #include "mcts.h"
 #include "position.h"
 #include "bb.h"
+#include "nn.h"
 #include <omp.h>
 #include <mutex>
 
@@ -72,6 +73,21 @@ std::ostream& operator<<(std::ostream& os, vector<MCTSNode*> path) {
    return os;
 }
 
+// std::ostream& operator<<(std::ostream& os, const MCTSNode& node) {
+//    const MCTSNode* node_pt = &node;
+//    return os << node_pt;
+// }
+
+std::ostream& operator<<(std::ostream& os, const MCTSNode* node) {
+   os << "move: " << node->move;
+   os << ", repr: " << node->repr;
+   os << ", N: " << node->N;
+   os << ", N_RAVE: " << node->N_RAVE;
+   os << ", Q: " << node->Q;
+   os << ", Q_RAVE: " << node->Q_RAVE;
+   return os;
+}
+
 bool game_over(const Position& position, GameTerminationReason& reason) {
    if (MoveGen<ALL_LEGAL>(position).moves.size() == 0) {
 	  reason = NO_MOVES;
@@ -88,8 +104,10 @@ bool game_over(const Position& position, GameTerminationReason& reason) {
    return false;
 }
 
-MCTS::MCTS(string s0, int max_simulations, float c, float w_r, float w_v, float w_a, bool b_rave)
-   : s0(s0), max_simulations(max_simulations), c(c), w_r(w_r), w_v(w_v), w_a(w_a), simulations(0), rave(b_rave)
+MCTS::MCTS(string s0, int max_simulations, float c, float w_r, float w_v, float w_a,
+		   RaveOptions rave_options)
+   : max_simulations(max_simulations), c(c), w_r(w_r), w_v(w_v), w_a(w_a), simulations(0),
+	 rave_options(rave_options)
 {
    if (w_a < 0)
 	  w_a = max_simulations / 35.0f;
@@ -98,7 +116,8 @@ MCTS::MCTS(string s0, int max_simulations, float c, float w_r, float w_v, float 
    root_node.repr = s0;
 }
 
-MCTSNode* MCTS::search() {
+MCTSNode* MCTS::search(MCTSEvaluator& evaluator) {
+   string s0 = root_node.repr;
    while (time_available()) {
 	  Position root_position = Position(s0);
 	  simulate(root_node, root_position);
@@ -307,15 +326,20 @@ MCTSNode* MCTS::recover_move(MCTSNode* node, const Position& position) const {
 	  // }
    }
 
-   vector<int> Ns;
+   vector<float> Ns;
    for (auto c : children)
-	  Ns.push_back(pow(c->N, 1.0/0.8));
+	  Ns.push_back(pow(static_cast<float>(c->N), 1.0/0.8));
 
    random_device rd;
    mt19937 gen(rd());
    discrete_distribution<> d(Ns.begin(), Ns.end());
    
    int ind = d(gen);
+
+   // for (auto n : Ns)
+   // 	  cout << n << " ";
+   // cout << "\n";
+   // cout << children.at(ind)->N << ", " << Ns.at(ind) << endl;
    
    return children.at(ind);
    // return best_node;
@@ -366,7 +390,8 @@ MCTSNode* MCTS::select_move(MCTSNode* node, const Position& position, float c) {
 	  float exploration = uct + policy_prior_bonus;
 
 	  float w_rave = 0;
-	  if (rave) {
+	  if (   stm == WHITE && rave_options.white_rave
+		  || stm == BLACK && rave_options.black_rave) {
 		 w_rave = 0.5;
 	  }
 	  float value = ((1 - w_rave) * child->Q + w_rave * child->Q_RAVE) + value_prior_bonus;
@@ -402,6 +427,32 @@ MCTSNode* MCTS::select_move(MCTSNode* node, const Position& position, float c) {
    // return best_node;
 }
 
+void MCTS::play(Move move, Position& pos) {
+   vector<MCTSNode*> to_delete;
+   MCTSNode* new_root;
+   MCTSNode* child = root_node.first_child;
+   MCTSNode::Iterator iter(child);
+   for (; !iter.end(); child = iter.next())
+   {
+	  Move a = child->move;
+	  if (a != move)
+		 to_delete.push_back(child);
+	  else {
+		 new_root = child;
+	  }
+   }
+   for (auto c : to_delete)
+   	  delete c;
+
+   pos.make_move(move);
+   
+   root_node = *new_root;
+   root_node.parent = nullptr;
+   root_node.repr = pos.fen();
+   simulations = 0;
+   assert(root_node.move == move);
+}
+
 void MCTS::backup(vector<MCTSNode*>& path, float z)
 {
    unordered_set<int> played_moves;
@@ -419,7 +470,7 @@ void MCTS::backup(vector<MCTSNode*>& path, float z)
 	  float v = z;
 	  node->Q += (v - node->Q) / node->N;
 
-	  if (rave) {
+	  if (rave_options.white_rave || rave_options.black_rave) {
 		 MCTSNode* child = node->first_child;
 		 MCTSNode::Iterator iter(child);
 		 for (; !iter.end(); child = iter.next())
@@ -450,16 +501,34 @@ string MCTS::get_state(const Position& position) const {
 
 int playMCTS(string fen, int sims, bool white_rave) {
    Position position(fen);
+   cout << "Starting pos:\n";
+   cout << position;
    
-   bool curr_move_rave = white_rave;
+   RaveOptions ro = RaveOptions();
+   ro.white_rave = white_rave;
+   ro.black_rave = !white_rave;
+
+   SlonikNet net;
+   MCTSEvaluator evaluator = [&net](const Position& pos) {
+	  float value = 0.5;
+	  vector<float> policy;
+	  PositionEvaluation eval;
+	  return eval;
+   };
+   auto mcts = MCTS(position.fen(), sims, sqrt(2), 1.0, 0.0, 0.0, ro);
+   
    GameTerminationReason reason;
-   while (!game_over(position, reason)) {
-	  auto mcts = MCTS(position.fen(), sims, sqrt(2), 1.0, 0.0, 0.0, curr_move_rave);
-	  MCTSNode* node = mcts.search();
+   do {
+	  MCTSNode* node = mcts.search(evaluator);
 	  Move a = node->move;
-	  position.make_move(a);
-	  curr_move_rave = !curr_move_rave;
+	  // cout << position;
+	  // cout << "making move " << a << "\n";
+	  // position.make_move(a);
+	  // cout << "after made move " << a << ":\n";
+	  // cout << position;
+	  mcts.play(a, position);
    }
+   while (!game_over(position, reason));
 
    int result = 0;
    Side stm = position.side_to_move();
@@ -470,7 +539,6 @@ int playMCTS(string fen, int sims, bool white_rave) {
 		 result = -1;
    
    cout << position;
-   cout << position.key() << endl;
    cout << position.moves;
 
    return result;

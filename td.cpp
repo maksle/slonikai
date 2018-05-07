@@ -199,7 +199,7 @@ void initialize()
     }
     
     float accuracy = net.validate(valid_features, valid_targets);
-    LG << accuracy;
+    std::cout << accuracy;
     
     for (int i = 0; i < epochs; i++) {
         // float accuracy = net.validate(valid_features, valid_targets);
@@ -250,7 +250,7 @@ void initialize()
                 if (batches > 0 && batches % valid_frequency == 0)
                 {
                     float accuracy = net.validate(valid_features, valid_targets);
-                    LG << accuracy;
+                    std::cout << accuracy;
                 }
 
                 ++batches;
@@ -260,7 +260,7 @@ void initialize()
             }
         }
         float accuracy = net.validate(valid_features, valid_targets);
-        LG << accuracy;
+        std::cout << accuracy;
 
         std::stringstream checkpoint_name;
         checkpoint_name << "epoch_" << i << "_vloss_" << accuracy << ".params";

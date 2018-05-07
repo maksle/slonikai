@@ -16,6 +16,11 @@ class Position;
 
 const int NO_EVAL = 10000;
 
+struct RaveOptions {
+  bool white_rave = false;
+  bool black_rave = false;
+};
+
 class MCTSNode {
  public:
   /* vector<MCTSNode*> children; */
@@ -97,12 +102,12 @@ class RandomSelector
   }
 };
 
-typedef tuple<float, vector<float>> PositionEvaluation;
+typedef tuple<float, vector<float>> PositionEvaluation; // value, policy
 typedef std::function<PositionEvaluation(const Position&)> MCTSEvaluator;
 
 class MCTS {
  private:
-  string s0;
+  /* string s0; */
   MCTSNode root_node;
   float c;
   float w_r;
@@ -114,14 +119,15 @@ class MCTS {
   int max_simulations;
   RandomSelector random_choice;
 
-  bool rave;
+  RaveOptions rave_options;
 
  public:
 
-  MCTS(string s0, int max_simulations=800,
-       float c=1.1414, float w_r=0.5, float w_v=0.75, float w_a=-1.0f, bool rave=false);
+  MCTS(string s0,int max_simulations=800,
+       float c=1.1414, float w_r=0.5, float w_v=0.75, float w_a=-1.0f,
+       RaveOptions rave_options=RaveOptions());
   
-  MCTSNode* search();
+  MCTSNode* search(MCTSEvaluator&);
   bool time_available();
   void simulate(MCTSNode&, Position&);
   vector<MCTSNode*> sim_tree(MCTSNode* node, Position& position);
@@ -138,6 +144,7 @@ class MCTS {
   vector<Move> get_actions(const Position& position) const;
   string get_state(const Position& position) const;
   /* string edge_key(string s, Move a) const; */
+  void play(Move move, Position& pos);
 };
 
 int playMCTS(string fen, int sims, bool white_rave);

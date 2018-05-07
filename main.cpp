@@ -14,7 +14,7 @@
 #include "uci.h"
 #include "features.h"
 #include "template.cpp"
-#include "package/mxnet-cpp/MxNetCpp.h"
+// #include "package/mxnet-cpp/MxNetCpp.h"
 #include "nn.h"
 #include "td.h"
 #include "sts.h"
@@ -99,7 +99,10 @@ int main(int argc, char* argv[])
     // cout << "Root fen:\n";
     // cout << Position(fens[0]);
     
-    #pragma omp parallel for
+    
+    SlonikNet net;
+    return 0;
+
     for (int i = 0; i < fens.size(); i++) {
         continue;
         std::string s0 = fens.at(i);
@@ -117,9 +120,22 @@ int main(int argc, char* argv[])
         // }
 
         // cout << "DEFAULT" << endl;
-        auto mcts = MCTS(s0, sims, sqrt(2), 1.0, 0.0, 0.0, true);
-        MCTSNode* node = mcts.search();
-        vector<Move> moves = mcts.pv();
+        auto ro = RaveOptions();
+        ro.white_rave = true;
+        ro.black_rave = true;
+        
+        auto mcts = MCTS(s0, sims, sqrt(2), 1.0, 0.0, 0.0, ro);
+
+        // SlonikNet net;
+        // MCTSEvaluator evaluator = [&net](const Position& pos) {
+        //     float value = 0.5;
+        //     vector<float> policy;
+        //     return value;
+        // };
+        // MCTSNode* node = mcts.search(evaluator);
+
+        // vector<Move> moves = mcts.pv();
+
         // for (auto move : moves) {
         //     std::cout << move << std::endl;
         // }
@@ -178,6 +194,8 @@ int main(int argc, char* argv[])
     std::cout << "Rave wins " << rave_win << endl;
     std::cout << "Rave draws " << rave_draw << endl;
     std::cout << "Rave loss " << rave_loss << endl;
+    std::cout << "Rave win ratio (excl. draw)" << ((rave_win * 1.0f) / (rave_win + rave_loss))
+              << std::endl; 
     
     // std::string s0 = fens.at(5);
     // Position pos = Position(s0);

@@ -3,8 +3,9 @@
 
 #include <string>
 #include <map>
+#include <vector>
 /* #include "eval.h" */
-#include "package/mxnet-cpp/MxNetCpp.h"
+/* #include "package/mxnet-cpp/MxNetCpp.h" */
 
 class Position;
 
@@ -41,12 +42,12 @@ class SlonikNet {
 
   int hidden_shared_size = 64;
   
-  mxnet::cpp::Symbol v;
-  mxnet::cpp::Symbol target;
-  mxnet::cpp::Symbol loss;
+  /* mxnet::cpp::Symbol v; */
+  /* mxnet::cpp::Symbol target; */
+  /* mxnet::cpp::Symbol loss; */
   
-  mxnet::cpp::Symbol build_net();
-  mxnet::cpp::Symbol feature_group(std::string name, int hidden_size);
+  /* mxnet::cpp::Symbol build_net(); */
+  /* mxnet::cpp::Symbol feature_group(std::string name, int hidden_size); */
   void load_inputs_from_position(const Position& pos,
                                  std::vector<float> targets = std::vector<float>());
 
@@ -54,14 +55,14 @@ class SlonikNet {
   
  public:
 
-  std::unique_ptr<mxnet::cpp::Executor> executor;
-  std::unique_ptr<mxnet::cpp::Optimizer> optimizer;
+  /* std::unique_ptr<mxnet::cpp::Executor> executor; */
+  /* std::unique_ptr<mxnet::cpp::Optimizer> optimizer; */
   
   SlonikNet();
   
   void save(std::string name);
   float validate(std::vector<Features> features, std::vector<float> targets);
-  void fit(std::vector< std::vector<std::vector<float>> > features, std::vector<float> targets);
+  void fit(std::vector<Features> features, std::vector<float> targets);
   float forward_only();
   float evaluate(const Position& pos);
 };
