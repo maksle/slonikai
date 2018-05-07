@@ -1,0 +1,9 @@
+dataset generation:
+play games with exploration policy and select a single position from each game
+for the initial datasest, use MCTS with 1k sims (100k positions)
+each successive iteration, sample positions with apprentice (100k positions)
+
+to generate value network targets, need more than 100k samples, MCTS targets too expensive
+EXIT did generate dataset using MC targets with self play of the apprentice policy network
+But why not use V(s) backups from MCTS as targets, like TreeStrap in Meep.
+
